@@ -40,6 +40,7 @@ new-nova/
 ├─ docs/PLAN.md
 ├─ pubspec.yaml
 ├─ analysis_options.yaml
+├─ tool/get_fonts.sh
 ├─ tool/patch_android.sh
 ├─ assets/fonts/                  (Inter، بيتحمّل في CI)
 ├─ test/widget_test.dart
@@ -50,6 +51,7 @@ new-nova/
    │  ├─ tokens.dart
    │  ├─ theme.dart
    │  ├─ motion.dart
+   │  ├─ ui_prefs.dart
    │  ├─ haptics.dart
    │  └─ formatters.dart
    ├─ data/
@@ -90,10 +92,12 @@ new-nova/
 
 ### الخطوة 1: الأساس (Project skeleton)
 
-- [ ] `pubspec.yaml`: اسم المشروع `nova`، المكتبة الوحيدة `shared_preferences`، تعريف خط Inter.
-- [ ] `analysis_options.yaml`: قواعد lints الأساسية.
-- [ ] `.gitignore`: ملفات Flutter وAndroid المولّدة.
-- [ ] `README.md`: أوامر البناء والتشغيل.
+- [x] `pubspec.yaml`: اسم المشروع `nova`، المكتبة الوحيدة `shared_preferences`، تعريف خط Inter.
+- [x] `analysis_options.yaml`: قواعد lints الأساسية.
+- [x] `.gitignore`: ملفات Flutter وAndroid المولّدة.
+- [x] `README.md`: أوامر البناء والتشغيل وطريقة تنزيل الـ APK.
+- [x] `tool/get_fonts.sh` (إضافة على الخطة): بيحمّل خط Inter، والـ CI وأنت محلياً بتستخدموه.
+- [x] `lib/main.dart` و`test/widget_test.dart` **مؤقتين** عشان أتأكد إن الـ pipeline شغال (هيتبدلوا في الخطوتين 6 و7).
 
 ### الخطوة 2: نظام التصميم (`lib/core/`)
 
@@ -108,6 +112,7 @@ new-nova/
   - `NovaSpring`: ثوابت الـ spring.
   - `NovaPageRoute`: انتقال fade + scale خفيف، ويحترم reduce motion.
   - `Pressable`: ويدجت بيصغّر 0.96 عند الضغط.
+- [ ] `ui_prefs.dart` (إضافة على الخطة): `UiPrefs` ويدجت بيوصّل إعدادات reduce blur وreduce motion للواجهة من غير ما كل الشاشات تتبني تاني.
 - [ ] `haptics.dart`: `Haptics.tap()` و`select()` و`success()`، وكلهم بيتأكدوا من إعداد الـ haptics.
 - [ ] `formatters.dart`: `formatTimer(Duration)` و`formatDue(DateTime)` و`greetingFor(DateTime)`.
 
@@ -173,8 +178,8 @@ new-nova/
 ### الخطوة 7: الاختبار والبناء
 
 - [ ] `test/widget_test.dart`: smoke test بيتأكد إن التطبيق بيفتح.
-- [ ] `tool/patch_android.sh`: ضبط اسم التطبيق `Nova` بعد `flutter create`.
-- [ ] `.github/workflows/build-apk.yml`:
+- [x] `tool/patch_android.sh`: ضبط اسم التطبيق `Nova` بعد `flutter create`.
+- [ ] `.github/workflows/build-apk.yml` (اتكتب ونتنشر، وهتتعلّم بعد ما أول تشغيل ينجح):
   checkout، Java 17، Flutter stable، تحميل Inter، `flutter create --platforms=android`، patch، `flutter pub get`، `flutter analyze`، `flutter test`، `flutter build apk --release`، رفع الـ APK كـ artifact وكـ GitHub Release.
 
 ### الخطوة 8: النشر والمتابعة
