@@ -72,12 +72,13 @@ class NovaIslandService : Service() {
                 setStroke(1, 0xFF30343B.toInt())
             }
             elevation = 18f
-            setOnClickListener { text = "Nova Island • tap Nova to manage" }
+            setOnClickListener { this.text = "Nova Island • tap Nova to manage" }
         }.also { islandView = it }
         text.text = if (body.isBlank()) "●  $title" else "●  $title\n$body"
         if (text.parent == null) {
+            @Suppress("DEPRECATION")
             val type = if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+                else WindowManager.LayoutParams.TYPE_PHONE
             val params = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
