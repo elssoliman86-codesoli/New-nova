@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/formatters.dart';
 import '../core/tokens.dart';
@@ -236,7 +237,7 @@ class _SystemIslandPanelState extends State<_SystemIslandPanel> {
       decoration: BoxDecoration(
         color: NovaColors.surface,
         borderRadius: BorderRadius.circular(NovaRadius.lg),
-        border: Border.all(color: NovaColors.stroke),
+        border: Border.all(color: NovaColors.white(0.08)),
       ),
       child: FutureBuilder<SystemIslandStatus>(
         future: _status,
@@ -276,6 +277,10 @@ class _SystemIslandPanelState extends State<_SystemIslandPanel> {
                   FilledButton(
                     onPressed: _busy || !ready ? null : () => _run(SystemIslandBridge.start),
                     child: const Text('Start Island'),
+                  ),
+                  TextButton(
+                    onPressed: _busy ? null : () => setState(() => _status = SystemIslandBridge.status()),
+                    child: const Text('Refresh'),
                   ),
                   TextButton(
                     onPressed: _busy ? null : () => _run(SystemIslandBridge.stop),
