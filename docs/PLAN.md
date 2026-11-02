@@ -189,11 +189,16 @@ new-nova/
 
 ### الخطوة 8: النشر والمتابعة
 
+- [x] تأكيد أن آخر commit على `main` هو `b3ad2c1` وأن ملفات التطبيق والاختبارات والـ workflow مرفوعة.
+- [x] تشغيل GitHub Actions رقم `4` (`Build Android APK`)؛ جميع الخطوات نجحت، بما فيها `Analyze` و`Test` و`Build release APK` و`Publish GitHub Release`.
+- [x] معالجة مشكلة layout: صفوف `CrossAxisAlignment.stretch` داخل scroll views كانت بتستقبل ارتفاعاً غير محدود؛ اتصلحت باستخدام `IntrinsicHeight` في الشاشات المتأثرة، والاختبارات بعدها نجحت.
+- [x] نشر Release `build-4` وفيه `nova.apk`.
+
 - [x] نشر الخطة دي (`docs/PLAN.md`) على الريبو.
-- [ ] `commit` و`push` للكود على `main`.
-- [ ] متابعة تشغيل الـ workflow من `gh api` وقراءة logs لو فشل.
-- [ ] إصلاح أي errors وإعادة الدفع لحد ما البناء ينجح.
-- [ ] تأكيد وجود الـ APK في صفحة Releases.
+- [x] `commit` و`push` للكود على `main`؛ الكود موجود على الفرع `main` ضمن آخر commit `b3ad2c1`.
+- [x] متابعة تشغيل الـ workflow وقراءة حالة الـ job والخطوات؛ آخر تشغيل `#4` اكتمل بنجاح.
+- [x] إصلاح أخطاء الـ analyzer ومشكلة layout ظهرت في اختبارات الواجهة، ثم إعادة البناء بنجاح.
+- [x] تأكيد نشر `nova.apk` داخل Release باسم `build-4` (حجم الملف 52,215,675 بايت).
 
 ---
 
