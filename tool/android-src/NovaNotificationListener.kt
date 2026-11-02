@@ -43,7 +43,6 @@ class NovaNotificationListener : NotificationListenerService() {
         if (parts.isEmpty() && generic != null && (generic.toIntOrNull() ?: -1) in 0..100) parts.add("$generic%")
         return if (parts.isEmpty()) null else parts.joinToString(" • ")
     }
-    }
 
     private fun sendServiceAction(action: String, title: String? = null, body: String? = null) {
         val event = Intent(this, NovaIslandService::class.java).setAction(action)
