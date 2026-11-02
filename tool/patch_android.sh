@@ -19,7 +19,11 @@ for permission in \
   android.permission.SYSTEM_ALERT_WINDOW \
   android.permission.FOREGROUND_SERVICE \
   android.permission.FOREGROUND_SERVICE_SPECIAL_USE \
-  android.permission.POST_NOTIFICATIONS; do
+  android.permission.POST_NOTIFICATIONS \
+  android.permission.ACCESS_NETWORK_STATE \
+  android.permission.BLUETOOTH \
+  android.permission.BLUETOOTH_CONNECT \
+  android.permission.READ_PHONE_STATE; do
   if ! grep -q "android:name=\"$permission\"" "$MANIFEST"; then
     sed -i "/<application/i\\    <uses-permission android:name=\"$permission\" />" "$MANIFEST"
   fi
