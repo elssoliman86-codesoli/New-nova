@@ -145,3 +145,13 @@ class NovaPageRoute<T> extends PageRouteBuilder<T> {
           },
         );
 }
+
+/// Pushes a page with the Nova transition (fade and a small upward slide).
+Future<T?> pushNova<T>(BuildContext context, WidgetBuilder builder) {
+  return Navigator.of(context).push<T>(
+    NovaPageRoute<T>(
+      builder: builder,
+      reduceMotion: UiPrefs.motionReducedNow(context),
+    ),
+  );
+}

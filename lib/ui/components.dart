@@ -7,6 +7,7 @@ import '../core/motion.dart';
 import '../core/tokens.dart';
 import '../core/ui_prefs.dart';
 import '../data/models.dart';
+import 'background.dart';
 import 'glass.dart';
 import 'neu.dart';
 
@@ -22,6 +23,7 @@ class ScreenScaffold extends StatelessWidget {
     this.showBack,
     this.floating,
     this.resizeForKeyboard = true,
+    this.header = true,
   });
 
   final String title;
@@ -36,19 +38,23 @@ class ScreenScaffold extends StatelessWidget {
   final Widget? floating;
   final bool resizeForKeyboard;
 
+  /// Set to false for pages that draw their own heading (sign in, loading).
+  final bool header;
+
   @override
   Widget build(BuildContext context) {
     final canPop = Navigator.of(context).canPop();
     final back = showBack ?? canPop;
 
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: Colors.transparent,
       resizeToAvoidBottomInset: resizeForKeyboard,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            Padding(
+            if (header)
+              Padding(
               padding: const EdgeInsets.fromLTRB(
                 NovaLayout.pagePad - 4,
                 NovaSpace.md,
@@ -113,6 +119,15 @@ class ScreenScaffold extends StatelessWidget {
           ],
         ),
       ),
+    );
+
+    // Every page paints its own (static) background so route transitions
+    // cross-fade cleanly instead of showing the previous page through it.
+    return Stack(
+      children: [
+        const Positioned.fill(child: AmbientBackground()),
+        Positioned.fill(child: scaffold),
+      ],
     );
   }
 }

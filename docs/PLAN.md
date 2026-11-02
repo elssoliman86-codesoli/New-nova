@@ -43,7 +43,10 @@ new-nova/
 ├─ tool/get_fonts.sh
 ├─ tool/patch_android.sh
 ├─ assets/fonts/                  (Inter، بيتحمّل في CI)
-├─ test/widget_test.dart
+├─ test/
+│  ├─ widget_test.dart
+│  ├─ store_test.dart
+│  └─ formatters_test.dart
 └─ lib/
    ├─ main.dart
    ├─ app.dart
@@ -155,29 +158,31 @@ new-nova/
 
 ### الخطوة 5: الشاشات (`lib/screens/`)
 
-- [ ] `boot_screen.dart`: تحميل أولي (`store.init()`)، وخطأ مع Retry، وبعدها يوجّه لـ Auth أو Shell.
-- [ ] `auth_screen.dart`: Login/Register بـ `AnimatedSwitcher`، validation، إظهار/إخفاء الباسورد، "Forgot password" كـ dialog.
-- [ ] `shell_screen.dart`: `IndexedStack` لـ 4 تابات (Home وTasks وInsights وProfile) + `FloatingNavBar`.
-- [ ] `home_screen.dart`: تحية، كارت التركيز، أول 3 مهام، إحصائيات سريعة، جرس الإشعارات.
-- [ ] `tasks_screen.dart`: بحث، فلاتر (All/Open/Done/High)، تجميع حسب اليوم، swipe للحذف مع Undo في الـ Island، long-press لقايمة إجراءات.
-- [ ] `task_detail_screen.dart`: تفاصيل المهمة، تعديل، حذف (dialog)، "Focus on this task".
-- [ ] `task_editor_sheet.dart`: إضافة وتعديل مهمة (عنوان وملاحظات وأولوية وتاريخ).
-- [ ] `focus_sheet.dart`: اختيار المدة (15/25/45/60) والمهمة المرتبطة.
-- [ ] `insights_screen.dart`: رسم الأسبوع، حلقة الإنجاز، الـ streak، الهدف اليومي.
-- [ ] `profile_screen.dart`: الاسم والإحصائيات وروابط الإعدادات والإشعارات وتسجيل الخروج.
-- [ ] `settings_screen.dart`: toggles (Haptics وIsland وReduce blur وReduce motion)، الهدف اليومي، مسح البيانات.
-- [ ] `notifications_screen.dart`: سجل الإشعارات، تعليم الكل كمقروء، مسح، حالة فارغة.
+- [x] `boot_screen.dart`: تحميل أولي (`store.init()`)، وخطأ مع Retry، وبعدها يوجّه لـ Auth أو Shell.
+- [x] `auth_screen.dart`: Login/Register بـ `AnimatedSwitcher`، validation، إظهار/إخفاء الباسورد، "Forgot password" كـ dialog.
+- [x] `shell_screen.dart`: `IndexedStack` لـ 4 تابات (Home وTasks وInsights وProfile) + `FloatingNavBar`.
+- [x] `home_screen.dart`: تحية، كارت التركيز، أول 3 مهام، إحصائيات سريعة، جرس الإشعارات.
+- [x] `tasks_screen.dart`: بحث، فلاتر (All/Open/Done/High)، تجميع حسب اليوم، swipe للحذف مع Undo في الـ Island، long-press لقايمة إجراءات.
+- [x] `task_detail_screen.dart`: تفاصيل المهمة، تعديل، حذف (dialog)، "Focus on this task".
+- [x] `task_editor_sheet.dart`: إضافة وتعديل مهمة (عنوان وملاحظات وأولوية وتاريخ).
+- [x] `focus_sheet.dart`: اختيار المدة (15/25/45/60) والمهمة المرتبطة.
+- [x] `insights_screen.dart`: رسم الأسبوع، حلقة الإنجاز، الـ streak، الهدف اليومي.
+- [x] `profile_screen.dart`: الاسم والإحصائيات وروابط الإعدادات والإشعارات وتسجيل الخروج.
+- [x] `settings_screen.dart`: toggles (Haptics وIsland وReduce blur وReduce motion)، الهدف اليومي، مسح البيانات.
+- [x] `notifications_screen.dart`: سجل الإشعارات، تعليم الكل كمقروء، مسح، حالة فارغة.
 
 ### الخطوة 6: نقطة الدخول والربط
 
-- [ ] `main.dart`: ضبط edge-to-edge وقفل الوضع الرأسي، وبعدها `runApp(NovaApp())`.
-- [ ] `app.dart`: بيخلق `AppStore` ويحطه في `AppScope`، وبيركّب `IslandHost` في `MaterialApp.builder`، والصفحة الرئيسية `BootScreen`.
+- [x] `main.dart`: ضبط edge-to-edge وقفل الوضع الرأسي، وبعدها `runApp(NovaApp())`.
+- [x] `app.dart`: بيخلق `AppStore` ويحطه في `AppScope`، وبيركّب `IslandHost` في `MaterialApp.builder`، والصفحة الرئيسية `BootScreen`.
 
 **الربط بين الأجزاء:** `AppScope` يوصّل الـ `AppStore` لكل الشاشات. الـ `AppStore` عنده `IslandController` ويناديه بعد كل إجراء (إضافة مهمة، حذف، بدء تركيز). والـ `IslandHost` بيسمع للـ controller ويرسم الحالة.
 
 ### الخطوة 7: الاختبار والبناء
 
-- [ ] `test/widget_test.dart`: smoke test بيتأكد إن التطبيق بيفتح.
+- [x] `test/widget_test.dart`: اختبارات واجهة (شاشة الدخول، إنشاء حساب ووصول للـ Home، رسائل التحقق).
+- [x] `test/store_test.dart` (إضافة): اختبارات المهام والتركيز والحفظ والإعدادات والـ JSON.
+- [x] `test/formatters_test.dart` (إضافة): اختبارات التنسيق.
 - [x] `tool/patch_android.sh`: ضبط اسم التطبيق `Nova` بعد `flutter create`.
 - [x] `.github/workflows/build-apk.yml` (اتجرّب وشغال: البناء نجح والـ APK التجريبي اتنشر في Releases):
   checkout، Java 17، Flutter stable، تحميل Inter، `flutter create --platforms=android`، patch، `flutter pub get`، `flutter analyze`، `flutter test`، `flutter build apk --release`، رفع الـ APK كـ artifact وكـ GitHub Release.

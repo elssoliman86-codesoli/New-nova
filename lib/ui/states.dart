@@ -14,6 +14,7 @@ class EmptyState extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.compact = false,
   });
 
   final IconData icon;
@@ -21,6 +22,10 @@ class EmptyState extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+
+  /// Compact mode does not scroll or centre itself, so it can sit inside a
+  /// list or card.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +36,7 @@ class EmptyState extends StatelessWidget {
       message: message,
       actionLabel: actionLabel,
       onAction: onAction,
+      compact: compact,
     );
   }
 }
@@ -71,6 +77,7 @@ class _StateLayout extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.compact = false,
   });
 
   final IconData icon;
@@ -79,48 +86,57 @@ class _StateLayout extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final badge = compact ? 64.0 : 84.0;
+    final content = Semantics(
+      container: true,
+      label: '$title. $message',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          NeuRaised(
+            radius: NovaRadius.pill,
+            child: SizedBox(
+              width: badge,
+              height: badge,
+              child: Icon(icon, size: compact ? 28 : 34, color: iconColor),
+            ),
+          ),
+          SizedBox(height: compact ? NovaSpace.lg : NovaSpace.xxl),
+          Text(title, textAlign: TextAlign.center, style: NovaType.headline),
+          const SizedBox(height: NovaSpace.sm),
+          Text(message, textAlign: TextAlign.center, style: NovaType.bodyDim),
+          if (actionLabel != null) ...[
+            SizedBox(height: compact ? NovaSpace.lg : NovaSpace.xxl),
+            NeuButton(
+              label: actionLabel!,
+              onPressed: onAction,
+              expand: false,
+              kind: NeuButtonKind.secondary,
+            ),
+          ],
+        ],
+      ),
+    );
+
+    if (compact) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: NovaSpace.xxl,
+          horizontal: NovaSpace.lg,
+        ),
+        child: Center(child: content),
+      );
+    }
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(NovaSpace.xxxl),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 340),
-          child: Semantics(
-            container: true,
-            label: '$title. $message',
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                NeuRaised(
-                  radius: NovaRadius.pill,
-                  child: SizedBox(
-                    width: 84,
-                    height: 84,
-                    child: Icon(icon, size: 34, color: iconColor),
-                  ),
-                ),
-                const SizedBox(height: NovaSpace.xxl),
-                Text(title, textAlign: TextAlign.center, style: NovaType.headline),
-                const SizedBox(height: NovaSpace.sm),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: NovaType.bodyDim,
-                ),
-                if (actionLabel != null) ...[
-                  const SizedBox(height: NovaSpace.xxl),
-                  NeuButton(
-                    label: actionLabel!,
-                    onPressed: onAction,
-                    expand: false,
-                    kind: NeuButtonKind.secondary,
-                  ),
-                ],
-              ],
-            ),
-          ),
+          child: content,
         ),
       ),
     );
