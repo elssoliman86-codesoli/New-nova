@@ -101,29 +101,29 @@ new-nova/
 
 ### الخطوة 2: نظام التصميم (`lib/core/`)
 
-- [ ] `tokens.dart`
+- [x] `tokens.dart`
   - `NovaColors`: `#080D19` و`#0D1525` و`#398BFF` و`#42C8FF` و`#F2F6FF` و`#8C9BB5` + ألوان حالات هادية.
   - `NovaSpace`: 4/8/12/16/20/24/32.
   - `NovaRadius`: sm/md/lg/xl/pill.
   - `NovaType`: سلم الخطوط (title وheadline وbody وcaption).
   - `NovaShadows`: raised وpressed.
-- [ ] `theme.dart`: `buildNovaTheme()` يرجّع `ThemeData` داكن بالخط والألوان وtransitions الصفحات.
-- [ ] `motion.dart`
+- [x] `theme.dart`: `buildNovaTheme()` يرجّع `ThemeData` داكن بالخط والألوان وtransitions الصفحات.
+- [x] `motion.dart`
   - `NovaSpring`: ثوابت الـ spring.
   - `NovaPageRoute`: انتقال fade + scale خفيف، ويحترم reduce motion.
   - `Pressable`: ويدجت بيصغّر 0.96 عند الضغط.
-- [ ] `ui_prefs.dart` (إضافة على الخطة): `UiPrefs` ويدجت بيوصّل إعدادات reduce blur وreduce motion للواجهة من غير ما كل الشاشات تتبني تاني.
-- [ ] `haptics.dart`: `Haptics.tap()` و`select()` و`success()`، وكلهم بيتأكدوا من إعداد الـ haptics.
-- [ ] `formatters.dart`: `formatTimer(Duration)` و`formatDue(DateTime)` و`greetingFor(DateTime)`.
+- [x] `ui_prefs.dart` (إضافة على الخطة): `UiPrefs` ويدجت بيوصّل إعدادات reduce blur وreduce motion للواجهة من غير ما كل الشاشات تتبني تاني.
+- [x] `haptics.dart`: `Haptics.tap()` و`select()` و`success()`، وكلهم بيتأكدوا من إعداد الـ haptics.
+- [x] `formatters.dart`: `formatTimer(Duration)` و`formatDue(DateTime)` و`greetingFor(DateTime)`.
 
 ### الخطوة 3: البيانات والحالة (`lib/data/`)
 
-- [ ] `models.dart`
+- [x] `models.dart`
   - `Priority` (low/medium/high).
   - `TaskItem`: id وtitle وnotes وpriority وdue وdone وcreatedAt وcompletedAt، مع `toJson` و`fromJson` و`copyWith`.
   - `FocusLog` و`NovaNotification` و`UserProfile` و`AppSettings`.
-- [ ] `storage.dart`: `Storage.read(key)` و`write(key, json)` فوق `shared_preferences`، مع fallback في الذاكرة لو فشل.
-- [ ] `app_store.dart`: `AppStore extends ChangeNotifier`، قلب التطبيق.
+- [x] `storage.dart`: `Storage.read(key)` و`write(key, json)` فوق `shared_preferences`، مع fallback في الذاكرة لو فشل.
+- [x] `app_store.dart`: `AppStore extends ChangeNotifier`، قلب التطبيق.
   - جلسة المستخدم: `init()` و`signIn()` و`signUp()` و`signOut()`.
   - المهام: `addTask()` و`updateTask()` و`toggleTask()` و`deleteTask()` و`undoDelete()`.
   - القراءة المشتقة: `todayTasks` و`openTasks` و`streak` و`focusMinutesLast7Days()`.
@@ -131,13 +131,13 @@ new-nova/
   - الإشعارات: `pushNotification()` و`markAllRead()` و`clearNotifications()`.
   - الإعدادات: `setHaptics()` و`setIsland()` و`setReduceBlur()` و`setReduceMotion()` و`setDailyGoal()`.
   - الحفظ: `_persist()` بتحفظ بعد 300 ملي ثانية من آخر تغيير.
-- [ ] `app_scope.dart`: `AppScope` (InheritedNotifier). `AppScope.of(context)` بيسمع للتغييرات، و`AppScope.read(context)` بيقرأ من غير ما يسمع.
+- [x] `app_scope.dart`: `AppScope` (InheritedNotifier). `AppScope.of(context)` بيسمع للتغييرات، و`AppScope.read(context)` بيقرأ من غير ما يسمع.
 
 ### الخطوة 4: مكونات الواجهة (`lib/ui/`)
 
-- [ ] `background.dart`: `AmbientBackground`، تدرج ثابت مع توهّجين ناعمين بيترسموا مرة واحدة جوه `RepaintBoundary`، من غير أنيميشن مستمر.
-- [ ] `glass.dart`: `GlassSurface` (BackdropFilter blur + تعبئة `rgba(255,255,255,0.055)` + حد رفيع متدرج + خط إضاءة داخلي). فيه `GlassSurface.solid` من غير blur للقوايم، وتعطيل تلقائي للـ blur لو `reduceBlur` شغال.
-- [ ] `neu.dart`
+- [x] `background.dart`: `AmbientBackground`، تدرج ثابت مع توهّجين ناعمين بيترسموا مرة واحدة جوه `RepaintBoundary`، من غير أنيميشن مستمر.
+- [x] `glass.dart`: `GlassSurface` (BackdropFilter blur + تعبئة `rgba(255,255,255,0.055)` + حد رفيع متدرج + خط إضاءة داخلي). فيه `GlassSurface.solid` من غير blur للقوايم، وتعطيل تلقائي للـ blur لو `reduceBlur` شغال.
+- [x] `neu.dart`
   - `NeuRaised` (سطح بارز) و`NeuInset` (سطح غاطس).
   - `NeuButton` (primary وsecondary) و`NeuIconButton`.
   - `NeuToggle`: مسار غاطس وزرار بارز مع توهّج أزرق.
@@ -179,7 +179,7 @@ new-nova/
 
 - [ ] `test/widget_test.dart`: smoke test بيتأكد إن التطبيق بيفتح.
 - [x] `tool/patch_android.sh`: ضبط اسم التطبيق `Nova` بعد `flutter create`.
-- [ ] `.github/workflows/build-apk.yml` (اتكتب ونتنشر، وهتتعلّم بعد ما أول تشغيل ينجح):
+- [x] `.github/workflows/build-apk.yml` (اتجرّب وشغال: البناء نجح والـ APK التجريبي اتنشر في Releases):
   checkout، Java 17، Flutter stable، تحميل Inter، `flutter create --platforms=android`، patch، `flutter pub get`، `flutter analyze`، `flutter test`، `flutter build apk --release`، رفع الـ APK كـ artifact وكـ GitHub Release.
 
 ### الخطوة 8: النشر والمتابعة
