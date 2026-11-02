@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import '../core/formatters.dart';
 import '../core/haptics.dart';
 import '../core/tokens.dart';
+import '../system/system_controller.dart';
+import '../system/system_settings.dart';
 import '../ui/island.dart';
 import 'models.dart';
 import 'storage.dart';
@@ -75,10 +77,14 @@ class AppStore extends ChangeNotifier {
   final ValueNotifier<FocusState> focusState =
       ValueNotifier<FocusState>(FocusState.idle);
 
+  /// Android side: live device data, island service and voice assistant.
+  final SystemController system = SystemController();
+
   bool _ready = false;
   Object? _loadError;
   UserProfile _profile = const UserProfile.guest();
   AppSettings _settings = const AppSettings();
+  SystemSettings _sys = const SystemSettings();
   List<TaskItem> _tasks = <TaskItem>[];
   List<FocusLog> _logs = <FocusLog>[];
   List<NovaNotification> _notifications = <NovaNotification>[];
@@ -98,6 +104,7 @@ class AppStore extends ChangeNotifier {
   Object? get loadError => _loadError;
   UserProfile get profile => _profile;
   AppSettings get settings => _settings;
+  SystemSettings get systemSettings => _sys;
   List<TaskItem> get tasks => UnmodifiableListView<TaskItem>(_tasks);
   List<FocusLog> get logs => UnmodifiableListView<FocusLog>(_logs);
   List<NovaNotification> get notifications =>
@@ -121,6 +128,8 @@ class AppStore extends ChangeNotifier {
       }
       _ready = true;
       _applySettings();
+      _applySystem();
+      unawaited(system.autoStart());
     } catch (error) {
       _loadError = error;
       _ready = false;
@@ -135,6 +144,7 @@ class AppStore extends ChangeNotifier {
       final data = Map<String, dynamic>.from(decoded);
       final profile = UserProfile.fromJson(jsonMap(data['profile']));
       final settings = AppSettings.fromJson(jsonMap(data['settings']));
+      final sys = SystemSettings.fromJson(jsonMap(data['system']));
       final tasks = jsonList(data['tasks'])
           .map((e) => TaskItem.fromJson(jsonMap(e)))
           .toList();
@@ -146,6 +156,7 @@ class AppStore extends ChangeNotifier {
           .toList();
       _profile = profile;
       _settings = settings;
+      _sys = sys;
       _tasks = tasks;
       _logs = logs;
       _notifications = notes;
@@ -159,6 +170,7 @@ class AppStore extends ChangeNotifier {
       'v': 1,
       'profile': _profile.toJson(),
       'settings': _settings.toJson(),
+      'system': _sys.toJson(),
       'tasks': _tasks.map((t) => t.toJson()).toList(),
       'logs': _logs.map((l) => l.toJson()).toList(),
       'notifications': _notifications.map((n) => n.toJson()).toList(),
@@ -266,6 +278,7 @@ class AppStore extends ChangeNotifier {
     _logs = <FocusLog>[];
     _notifications = <NovaNotification>[];
     _settings = const AppSettings();
+    _sys = const SystemSettings();
     _profile = const UserProfile.guest();
     _lastDeleted = null;
     try {
@@ -274,6 +287,7 @@ class AppStore extends ChangeNotifier {
       // Nothing to do: in-memory state is already clean.
     }
     _applySettings();
+    _applySystem();
     notifyListeners();
   }
 
@@ -738,6 +752,19 @@ class AppStore extends ChangeNotifier {
     _changed();
   }
 
+  void _applySystem() {
+    unawaited(system.pushConfig(_sys));
+    unawaited(system.pushPrayers(_sys));
+  }
+
+  /// Updates island modules, prayer and assistant settings and sends them to
+  /// the Android service.
+  void updateSystemSettings(SystemSettings settings) {
+    _sys = settings;
+    _applySystem();
+    _changed();
+  }
+
   void setHaptics(bool value) =>
       updateSettings(_settings.copyWith(haptics: value));
 
@@ -764,6 +791,7 @@ class AppStore extends ChangeNotifier {
     _focusTimer?.cancel();
     focusState.removeListener(_syncLive);
     focusState.dispose();
+    system.dispose();
     island.dispose();
     super.dispose();
   }

@@ -39,4 +39,50 @@ class SystemIslandBridge {
 
   static Future<void> stop() =>
       _channel.invokeMethod<void>('stopIsland');
+
+  static Future<Map<Object?, Object?>> snapshot() async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>('snapshot');
+    return result ?? const <Object?, Object?>{};
+  }
+
+  static Future<void> openUsageSettings() =>
+      _channel.invokeMethod<void>('openUsageSettings');
+
+  static Future<void> openAccessibilitySettings() =>
+      _channel.invokeMethod<void>('openAccessibilitySettings');
+
+  static Future<void> openAppSettings() =>
+      _channel.invokeMethod<void>('openAppSettings');
+
+  static Future<void> requestIgnoreBattery() =>
+      _channel.invokeMethod<void>('requestIgnoreBattery');
+
+  static Future<void> openExactAlarmSettings() =>
+      _channel.invokeMethod<void>('openExactAlarmSettings');
+
+  /// [groups] can contain `island` and `assistant`.
+  static Future<void> requestPermissions(List<String> groups) =>
+      _channel.invokeMethod<void>('requestPermissions', {'groups': groups});
+
+  static Future<void> setConfig(Map<String, Object?> config) =>
+      _channel.invokeMethod<void>('setConfig', config);
+
+  static Future<void> schedulePrayers(Map<String, Object?> payload) =>
+      _channel.invokeMethod<void>('schedulePrayers', payload);
+
+  static Future<void> testEvent({String? kind, String? title, String? body}) =>
+      _channel.invokeMethod<void>('testEvent', {
+        if (kind != null) 'kind': kind,
+        if (title != null) 'title': title,
+        if (body != null) 'body': body,
+      });
+
+  static Future<void> mediaControl(String action) =>
+      _channel.invokeMethod<void>('mediaControl', {'action': action});
+
+  static Future<void> assistantSubmit(String text) =>
+      _channel.invokeMethod<void>('assistantSubmit', {'text': text});
+
+  static Future<void> assistantListen() =>
+      _channel.invokeMethod<void>('assistantListen');
 }

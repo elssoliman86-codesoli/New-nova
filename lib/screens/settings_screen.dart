@@ -5,6 +5,7 @@ import '../core/formatters.dart';
 import '../core/tokens.dart';
 import '../data/app_scope.dart';
 import '../platform/system_island_bridge.dart';
+import '../system/system_settings.dart';
 import '../ui/components.dart';
 import '../ui/neu.dart';
 import '../ui/overlays.dart';
@@ -48,6 +49,8 @@ class SettingsScreen extends StatelessWidget {
         children: [
           const _GroupTitle('System-wide Dynamic Island'),
           const _SystemIslandPanel(),
+          const _GroupTitle('Island content'),
+          const _IslandContent(),
           const _GroupTitle('Feedback'),
           SettingsGroup(
             children: [
@@ -336,6 +339,52 @@ class _PermissionLine extends StatelessWidget {
             color: granted ? NovaColors.success : NovaColors.textDim,
           ),
         ),
+      ],
+    );
+  }
+}
+
+
+class _IslandContent extends StatelessWidget {
+  const _IslandContent();
+
+  @override
+  Widget build(BuildContext context) {
+    final store = AppScope.of(context);
+    final sys = store.systemSettings;
+    return SettingsGroup(
+      children: [
+        SettingsRow(
+          icon: Icons.schedule_rounded,
+          title: 'Always show time, date and weather',
+          subtitle: 'A small pill stays at the top of every app',
+          trailing: NeuToggle(
+            value: sys.idlePill,
+            semanticLabel: 'Always show the island',
+            onChanged: (v) => store.updateSystemSettings(sys.copyWith(idlePill: v)),
+          ),
+        ),
+        SettingsRow(
+          icon: Icons.play_circle_outline_rounded,
+          title: 'Keep media pill while playing',
+          subtitle: 'Title and controls stay visible',
+          trailing: NeuToggle(
+            value: sys.mediaMini,
+            semanticLabel: 'Keep media pill',
+            onChanged: (v) => store.updateSystemSettings(sys.copyWith(mediaMini: v)),
+          ),
+        ),
+        for (final module in islandModules)
+          SettingsRow(
+            icon: module.icon,
+            title: module.title,
+            subtitle: module.subtitle,
+            trailing: NeuToggle(
+              value: sys.moduleOn(module.key),
+              semanticLabel: module.title,
+              onChanged: (v) => store.updateSystemSettings(sys.withModule(module.key, v)),
+            ),
+          ),
       ],
     );
   }

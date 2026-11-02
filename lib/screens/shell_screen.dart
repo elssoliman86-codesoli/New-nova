@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/motion.dart';
 import '../core/tokens.dart';
 import '../ui/floating_nav.dart';
+import 'device_screen.dart';
 import 'home_screen.dart';
 import 'insights_screen.dart';
 import 'profile_screen.dart';
@@ -30,6 +31,11 @@ class _ShellScreenState extends State<ShellScreen> {
       icon: Icons.bar_chart_outlined,
       activeIcon: Icons.bar_chart_rounded,
       label: 'Insights',
+    ),
+    NavItem(
+      icon: Icons.phone_android_rounded,
+      activeIcon: Icons.phone_android_rounded,
+      label: 'Device',
     ),
     NavItem(
       icon: Icons.person_outline_rounded,
@@ -65,6 +71,7 @@ class _ShellScreenState extends State<ShellScreen> {
                 HomeScreen(onGoToTab: _go),
                 const TasksScreen(),
                 const InsightsScreen(),
+                DeviceScreen(active: _index == 3),
                 const ProfileScreen(),
               ],
             ),
