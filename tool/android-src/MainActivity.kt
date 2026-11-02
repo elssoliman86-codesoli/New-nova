@@ -61,7 +61,7 @@ class MainActivity : FlutterActivity() {
 
     private fun requiredRuntimePermissions(): List<String> = buildList {
         if (Build.VERSION.SDK_INT >= 31) add(android.Manifest.permission.BLUETOOTH_CONNECT)
-        add(android.Manifest.permission.READ_PHONE_STATE)
+        if (Build.VERSION.SDK_INT >= 23) add(android.Manifest.permission.READ_PHONE_STATE)
     }
 
     private fun isNotificationAccessGranted(): Boolean {
