@@ -33,10 +33,8 @@ class MainActivity : FlutterActivity() {
                     }
                     "startIsland" -> {
                         val missing = requiredRuntimePermissions().filter { checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
-                        if (missing.isNotEmpty()) {
-                            requestPermissions(missing.toTypedArray(), 731)
-                            result.success(null)
-                        } else if (!(Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this))) {
+                        if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 731)
+                        if (!(Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this))) {
                             result.error("OVERLAY_PERMISSION_REQUIRED", "Grant display-over-other-apps permission first.", null)
                         } else {
                             val intent = Intent(this, NovaIslandService::class.java).setAction(NovaIslandService.ACTION_START)
@@ -51,6 +49,14 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 731 && grantResults.any { it == android.content.pm.PackageManager.PERMISSION_GRANTED }) {
+            val intent = Intent(this, NovaIslandService::class.java).setAction(NovaIslandService.ACTION_REFRESH_PERMISSIONS)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+        }
     }
 
     private fun requiredRuntimePermissions(): List<String> = buildList {
