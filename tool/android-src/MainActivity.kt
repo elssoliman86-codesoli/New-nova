@@ -17,11 +17,11 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getStatus" -> result.success(mapOf(
-                        "overlayGranted" to Settings.canDrawOverlays(this),
+                        "overlayGranted" to (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)),
                         "notificationAccessGranted" to isNotificationAccessGranted()
                     ))
                     "openOverlaySettings" -> {
-                        if (!Settings.canDrawOverlays(this)) {
+                        if (!(Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this))) {
                             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                                 Uri.parse("package:$packageName")))
                         }
@@ -32,7 +32,7 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "startIsland" -> {
-                        if (!Settings.canDrawOverlays(this)) {
+                        if (!(Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this))) {
                             result.error("OVERLAY_PERMISSION_REQUIRED", "Grant display-over-other-apps permission first.", null)
                         } else {
                             val intent = Intent(this, NovaIslandService::class.java).setAction(NovaIslandService.ACTION_START)
