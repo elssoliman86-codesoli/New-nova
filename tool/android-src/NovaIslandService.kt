@@ -199,6 +199,7 @@ class NovaIslandService : Service() {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun registerSystemReceivers() {
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_BATTERY_CHANGED)
@@ -211,7 +212,7 @@ class NovaIslandService : Service() {
         }
         try {
             if (Build.VERSION.SDK_INT >= 33) registerReceiver(systemReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-            else @Suppress("DEPRECATION") registerReceiver(systemReceiver, filter)
+            else registerReceiver(systemReceiver, filter)
             batteryReceiverRegistered = true
             deviceReceiverRegistered = true
         } catch (_: Exception) { }
@@ -336,9 +337,10 @@ class NovaIslandService : Service() {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun stopForegroundCompat() {
         if (Build.VERSION.SDK_INT >= 24) stopForeground(STOP_FOREGROUND_REMOVE)
-        else @Suppress("DEPRECATION") stopForeground(true)
+        else stopForeground(true)
     }
 
     private fun removeIsland() {
