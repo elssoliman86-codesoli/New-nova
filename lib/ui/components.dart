@@ -448,7 +448,7 @@ class ProgressRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final target = clampDouble(progress, 0.0, 1.0);
+    final target = clampTo(progress, 0.0, 1.0);
     return SizedBox(
       width: size,
       height: size,

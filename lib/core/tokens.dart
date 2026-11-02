@@ -1,5 +1,3 @@
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
 
 /// Colour palette. Deep midnight navy surfaces, electric blue accent and

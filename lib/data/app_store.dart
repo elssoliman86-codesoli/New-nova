@@ -41,7 +41,7 @@ class FocusState {
   /// 0 at the start of a session, 1 when it is finished.
   double get progress {
     if (totalSeconds <= 0) return 0;
-    return clampDouble(1 - remainingSeconds / totalSeconds, 0, 1);
+    return clampTo(1 - remainingSeconds / totalSeconds, 0, 1);
   }
 
   FocusState copyWith({FocusPhase? phase, int? remainingSeconds}) {

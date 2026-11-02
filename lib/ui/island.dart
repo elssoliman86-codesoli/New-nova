@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../core/formatters.dart';
 import '../core/haptics.dart';
 import '../core/motion.dart';
 import '../core/tokens.dart';
@@ -457,22 +458,23 @@ class _Scrim extends StatelessWidget {
 // ------------------------------------------------------------------ content
 
 class _IconBadge extends StatelessWidget {
-  const _IconBadge({required this.icon, required this.tint, this.size = 30});
+  const _IconBadge({required this.icon, required this.tint});
 
   final IconData icon;
   final Color tint;
-  final double size;
+
+  static const double _size = 30;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: size,
-      height: size,
+      width: _size,
+      height: _size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: tint.withValues(alpha: 0.16),
       ),
-      child: Icon(icon, size: size * 0.58, color: tint),
+      child: Icon(icon, size: _size * 0.58, color: tint),
     );
   }
 }
@@ -806,7 +808,7 @@ class _LiveExpandedContent extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(3),
               child: LinearProgressIndicator(
-                value: clampDouble(live.progress, 0.0, 1.0),
+                value: clampTo(live.progress, 0.0, 1.0),
                 minHeight: 6,
                 backgroundColor: NovaColors.white(0.08),
                 color: NovaColors.accent2,
@@ -862,7 +864,7 @@ class _MiniRingPainter extends CustomPainter {
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round
       ..color = NovaColors.accent2;
-    canvas.drawArc(inset, -math.pi / 2, math.pi * 2 * clampDouble(progress, 0.0, 1.0), false, arc);
+    canvas.drawArc(inset, -math.pi / 2, math.pi * 2 * clampTo(progress, 0.0, 1.0), false, arc);
   }
 
   @override

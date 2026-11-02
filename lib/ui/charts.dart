@@ -75,7 +75,7 @@ class _WeekPainter extends CustomPainter {
     if (maxValue <= 0) maxValue = 1;
 
     final slot = size.width / days.length;
-    final barWidth = clampDouble(slot * 0.46, 10.0, 30.0);
+    final barWidth = clampTo(slot * 0.46, 10.0, 30.0);
     final today = DateTime.now();
 
     final trackPaint = Paint()..color = NovaColors.white(0.05);
@@ -131,7 +131,7 @@ class _WeekPainter extends CustomPainter {
     final goalY = chartHeight - chartHeight * (goal / maxValue);
     var x = 0.0;
     while (x < size.width) {
-      canvas.drawLine(Offset(x, goalY), Offset(clampDouble(x + 5, 0, size.width), goalY), goalLine);
+      canvas.drawLine(Offset(x, goalY), Offset(clampTo(x + 5, 0, size.width), goalY), goalLine);
       x += 9;
     }
   }

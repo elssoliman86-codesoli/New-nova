@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/formatters.dart';
 import '../core/tokens.dart';
 import '../data/app_scope.dart';
+import '../data/models.dart';
 import '../ui/components.dart';
 import '../ui/glass.dart';
 import '../ui/neu.dart';
