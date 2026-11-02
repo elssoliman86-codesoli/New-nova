@@ -8,6 +8,7 @@ import android.app.Service
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -312,7 +313,7 @@ class NovaIslandService : Service() {
     private fun refreshMediaSessions() {
         try {
             mediaManager = getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
-            val listener = componentName
+            val listener = ComponentName(this, NovaNotificationListener::class.java)
             val controllers = mediaManager?.getActiveSessions(listener).orEmpty()
             val controller = controllers.firstOrNull()
             if (controller !== activeController) {
