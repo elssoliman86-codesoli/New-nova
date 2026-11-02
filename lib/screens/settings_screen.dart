@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/formatters.dart';
 import '../core/tokens.dart';
 import '../data/app_scope.dart';
+import '../platform/system_island_bridge.dart';
 import '../ui/components.dart';
 import '../ui/neu.dart';
 import '../ui/overlays.dart';
@@ -44,6 +45,8 @@ class SettingsScreen extends StatelessWidget {
           NovaSpace.xxxl + MediaQuery.of(context).padding.bottom,
         ),
         children: [
+          const _GroupTitle('System-wide Dynamic Island'),
+          const _SystemIslandPanel(),
           const _GroupTitle('Feedback'),
           SettingsGroup(
             children: [
@@ -192,6 +195,136 @@ class _GoalStepper extends StatelessWidget {
           tooltip: 'Increase goal',
           size: NovaLayout.minTap,
           onPressed: minutes >= 240 ? null : () => onChanged(minutes + _step),
+        ),
+      ],
+    );
+  }
+}
+
+
+class _SystemIslandPanel extends StatefulWidget {
+  const _SystemIslandPanel();
+
+  @override
+  State<_SystemIslandPanel> createState() => _SystemIslandPanelState();
+}
+
+class _SystemIslandPanelState extends State<_SystemIslandPanel> {
+  late Future<SystemIslandStatus> _status = SystemIslandBridge.status();
+  bool _busy = false;
+
+  Future<void> _run(Future<void> Function() action) async {
+    setState(() => _busy = true);
+    try {
+      await action();
+      if (!mounted) return;
+      setState(() => _status = SystemIslandBridge.status());
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'Android permission action failed')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(NovaSpace.lg),
+      decoration: BoxDecoration(
+        color: NovaColors.surface,
+        borderRadius: BorderRadius.circular(NovaRadius.lg),
+        border: Border.all(color: NovaColors.stroke),
+      ),
+      child: FutureBuilder<SystemIslandStatus>(
+        future: _status,
+        builder: (context, snapshot) {
+          final status = snapshot.data;
+          final ready = status?.ready == true;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Show Nova above other apps and mirror supported phone notifications.',
+                style: NovaType.body,
+              ),
+              const SizedBox(height: NovaSpace.md),
+              _PermissionLine(
+                label: 'Display over other apps',
+                granted: status?.overlayGranted == true,
+              ),
+              const SizedBox(height: NovaSpace.sm),
+              _PermissionLine(
+                label: 'Notification access',
+                granted: status?.notificationAccessGranted == true,
+              ),
+              const SizedBox(height: NovaSpace.md),
+              Wrap(
+                spacing: NovaSpace.sm,
+                runSpacing: NovaSpace.sm,
+                children: [
+                  OutlinedButton(
+                    onPressed: _busy ? null : () => _run(SystemIslandBridge.openOverlaySettings),
+                    child: const Text('Overlay permission'),
+                  ),
+                  OutlinedButton(
+                    onPressed: _busy ? null : () => _run(SystemIslandBridge.openNotificationSettings),
+                    child: const Text('Notification access'),
+                  ),
+                  FilledButton(
+                    onPressed: _busy || !ready ? null : () => _run(SystemIslandBridge.start),
+                    child: const Text('Start Island'),
+                  ),
+                  TextButton(
+                    onPressed: _busy ? null : () => _run(SystemIslandBridge.stop),
+                    child: const Text('Stop'),
+                  ),
+                ],
+              ),
+              if (status == null && snapshot.connectionState == ConnectionState.waiting)
+                const Padding(
+                  padding: EdgeInsets.only(top: NovaSpace.sm),
+                  child: LinearProgressIndicator(),
+                ),
+              const SizedBox(height: NovaSpace.sm),
+              Text(
+                ready
+                    ? 'Permissions ready. Start Island to keep the floating pill active.'
+                    : 'Grant both Android permissions, then return here and start Island.',
+                style: NovaType.caption,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PermissionLine extends StatelessWidget {
+  const _PermissionLine({required this.label, required this.granted});
+
+  final String label;
+  final bool granted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          granted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+          size: 18,
+          color: granted ? NovaColors.success : NovaColors.muted,
+        ),
+        const SizedBox(width: NovaSpace.sm),
+        Expanded(child: Text(label, style: NovaType.body)),
+        Text(
+          granted ? 'Granted' : 'Required',
+          style: NovaType.caption.copyWith(
+            color: granted ? NovaColors.success : NovaColors.muted,
+          ),
         ),
       ],
     );
