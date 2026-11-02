@@ -14,6 +14,14 @@ void _setUpPhone(WidgetTester tester) {
       .setMockMethodCallHandler(SystemChannels.platform, (call) async => null);
   addTearDown(() => tester.binding.defaultBinaryMessenger
       .setMockMethodCallHandler(SystemChannels.platform, null));
+
+  // The Device tab talks to the Android layer. Answer "nothing" so the call
+  // finishes instead of waiting for a platform that is not there.
+  const island = MethodChannel('com.codesoli.nova/system_island');
+  tester.binding.defaultBinaryMessenger
+      .setMockMethodCallHandler(island, (call) async => null);
+  addTearDown(() => tester.binding.defaultBinaryMessenger
+      .setMockMethodCallHandler(island, null));
 }
 
 void main() {
