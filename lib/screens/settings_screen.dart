@@ -326,14 +326,14 @@ class _PermissionLine extends StatelessWidget {
         Icon(
           granted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
           size: 18,
-          color: granted ? NovaColors.success : NovaColors.muted,
+          color: granted ? NovaColors.success : NovaColors.textDim,
         ),
         const SizedBox(width: NovaSpace.sm),
         Expanded(child: Text(label, style: NovaType.body)),
         Text(
           granted ? 'Granted' : 'Required',
           style: NovaType.caption.copyWith(
-            color: granted ? NovaColors.success : NovaColors.muted,
+            color: granted ? NovaColors.success : NovaColors.textDim,
           ),
         ),
       ],
