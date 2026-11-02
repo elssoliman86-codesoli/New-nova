@@ -50,6 +50,7 @@ class NovaIslandService : Service() {
     private var lastBattery = -1
     private var lastCharging = false
     private var lastMediaTitle = ""
+    private var mediaPlaying = false
     private var lastEventAt = 0L
 
     private val systemReceiver = object : BroadcastReceiver() {
@@ -68,7 +69,11 @@ class NovaIslandService : Service() {
                         showText(if (charging) "Charging" else "Battery", "$percent%")
                     }
                 }
-                BluetoothDevice.ACTION_ACL_CONNECTED -> showText("Bluetooth", "Device connected")
+                BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                    showText("Bluetooth", "Device connected")
+                    readBluetoothBattery(intent)
+                }
+                "android.bluetooth.device.action.BATTERY_LEVEL_CHANGED" -> readBluetoothBattery(intent)
                 BluetoothDevice.ACTION_ACL_DISCONNECTED -> showText("Bluetooth", "Device disconnected")
                 BluetoothAdapter.ACTION_STATE_CHANGED -> {
                     val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
@@ -94,8 +99,8 @@ class NovaIslandService : Service() {
         }
         override fun onPlaybackStateChanged(state: android.media.session.PlaybackState?) {
             if (lastMediaTitle.isNotBlank()) {
-                val playing = state?.state == android.media.session.PlaybackState.STATE_PLAYING
-                showText(if (playing) "Playing" else "Paused", lastMediaTitle)
+                mediaPlaying = state?.state == android.media.session.PlaybackState.STATE_PLAYING
+                showText(if (mediaPlaying) "Playing" else "Paused", lastMediaTitle)
             }
         }
     }
@@ -170,7 +175,8 @@ class NovaIslandService : Service() {
                 setStroke(1, 0xFF30343B.toInt())
             }
             elevation = 18f
-            setOnClickListener { this.text = "Nova Island • Open Nova for controls" }
+            setOnClickListener { handleMediaControl(if (mediaPlaying) "pause" else "play") }
+            setOnLongClickListener { handleMediaControl("next"); true }
         }.also { islandView = it }
         text.text = if (body.isBlank()) "●  $title" else "●  $title\n$body"
         if (text.parent == null) {
@@ -193,6 +199,7 @@ class NovaIslandService : Service() {
             addAction(Intent.ACTION_BATTERY_CHANGED)
             addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
             addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+            addAction("android.bluetooth.device.action.BATTERY_LEVEL_CHANGED")
             addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
             addAction(AudioManager.ACTION_HEADSET_PLUG)
             addAction(ConnectivityManager.CONNECTIVITY_ACTION)
@@ -282,6 +289,23 @@ class NovaIslandService : Service() {
             TelephonyManager.CALL_STATE_OFFHOOK -> showText("Call", "Call in progress")
             TelephonyManager.CALL_STATE_IDLE -> showText("Call", "Call ended")
         }
+    }
+
+    private fun readBluetoothBattery(intent: Intent) {
+        val device: BluetoothDevice? = try {
+            if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+            else @Suppress("DEPRECATION") intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+        } catch (_: Exception) { null }
+        var level = intent.getIntExtra("android.bluetooth.device.extra.BATTERY_LEVEL", -1)
+        if (level !in 0..100 && device != null && Build.VERSION.SDK_INT >= 33) {
+            level = try {
+                val method = BluetoothDevice::class.java.getMethod("getBatteryLevel")
+                method.invoke(device) as? Int ?: -1
+            } catch (_: Exception) { -1 }
+        }
+        val name = try { device?.name?.take(24) } catch (_: SecurityException) { null }
+        if (level in 0..100) showText("Headphone battery", (name ?: "Bluetooth device") + " • " + level + "%")
+        else showText("Headphones", (name ?: "Bluetooth device") + " connected • battery unavailable")
     }
 
     private fun refreshMediaSessions() {
