@@ -248,8 +248,13 @@ class _SystemIslandPanelState extends State<_SystemIslandPanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Show Nova above other apps and mirror supported phone notifications.',
+                'Show Nova above other apps. Media, battery, calls, audio devices and network events use Android permissions and supported system APIs.',
                 style: NovaType.body,
+              ),
+              const SizedBox(height: NovaSpace.sm),
+              const Text(
+                'Earbud battery: Nova displays left, right and case percentages only when Android or the earbud companion app exposes them. Some brands provide only one combined level or no battery data.',
+                style: NovaType.caption,
               ),
               const SizedBox(height: NovaSpace.md),
               _PermissionLine(
@@ -297,7 +302,7 @@ class _SystemIslandPanelState extends State<_SystemIslandPanel> {
               Text(
                 ready
                     ? 'Permissions ready. Start Island to keep the floating pill active.'
-                    : 'Grant both Android permissions, then return here and start Island.',
+                    : 'Grant Overlay and Notification Access. Start Island will also request optional Bluetooth and phone-state permissions.',
                 style: NovaType.caption,
               ),
             ],
