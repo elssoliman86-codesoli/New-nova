@@ -8,6 +8,7 @@ if [ ! -f "$MANIFEST" ]; then
   exit 1
 fi
 sed -i 's/android:label="[^"]*"/android:label="Nova"/' "$MANIFEST"
+sed -i 's#<uses-permission android:name="android.permission.BLUETOOTH" />#<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />#' "$MANIFEST"
 
 PACKAGE_DIR="$ROOT/android/app/src/main/kotlin/com/codesoli/nova"
 mkdir -p "$PACKAGE_DIR"
