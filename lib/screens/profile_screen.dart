@@ -92,7 +92,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: NovaSpace.lg),
           FadeIn(
             delay: const Duration(milliseconds: 60),
-            child: Row(
+            child: IntrinsicHeight(child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
@@ -112,7 +112,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
+            )),
           ),
           const SectionHeader(title: 'Account'),
           SettingsGroup(

@@ -53,7 +53,7 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: NovaSpace.lg),
           FadeIn(
             delay: const Duration(milliseconds: 60),
-            child: Row(
+            child: IntrinsicHeight(child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
@@ -76,7 +76,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
+            )),
           ),
           SectionHeader(
             title: 'Up next',

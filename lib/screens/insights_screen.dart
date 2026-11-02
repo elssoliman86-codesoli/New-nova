@@ -76,7 +76,7 @@ class InsightsScreen extends StatelessWidget {
           const SizedBox(height: NovaSpace.lg),
           FadeIn(
             delay: const Duration(milliseconds: 60),
-            child: Row(
+            child: IntrinsicHeight(child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
@@ -95,14 +95,14 @@ class InsightsScreen extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
+            )),
           ),
           const SizedBox(height: NovaSpace.lg),
           FadeIn(
             delay: const Duration(milliseconds: 120),
             child: Column(
               children: [
-                Row(
+                IntrinsicHeight(child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
@@ -125,9 +125,9 @@ class InsightsScreen extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
+                )),
                 const SizedBox(height: NovaSpace.md),
-                Row(
+                IntrinsicHeight(child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
@@ -149,7 +149,7 @@ class InsightsScreen extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
+                )),
               ],
             ),
           ),
