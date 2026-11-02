@@ -3,7 +3,6 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../core/formatters.dart';
@@ -61,7 +60,9 @@ class FocusState {
 /// Every user-visible action also tells the [island] what to show, which is
 /// how the floating notifications are wired to the data layer.
 class AppStore extends ChangeNotifier {
-  AppStore({Storage? storage}) : _storage = storage ?? PrefsStorage();
+  AppStore({Storage? storage}) : _storage = storage ?? PrefsStorage() {
+    focusState.addListener(_syncLive);
+  }
 
   static const String _stateKey = 'nova.state.v1';
 
@@ -600,6 +601,32 @@ class AppStore extends ChangeNotifier {
     }
   }
 
+  /// Mirrors the focus timer onto the island's live activity.
+  void _syncLive() {
+    final state = focusState.value;
+    if (!state.active) {
+      island.live.value = null;
+      island.collapseLive();
+      return;
+    }
+    final id = state.taskId;
+    final task = id == null ? null : taskById(id);
+    island.live.value = IslandLive(
+      title: task?.title ?? 'Focus session',
+      timeText: formatTimerSeconds(state.remainingSeconds),
+      progress: state.progress,
+      running: state.running,
+      onToggle: () {
+        if (focusState.value.running) {
+          pauseFocus();
+        } else {
+          resumeFocus();
+        }
+      },
+      onStop: stopFocus,
+    );
+  }
+
   int _remainingNow() {
     final end = _focusEnd;
     if (end == null) return focusState.value.remainingSeconds;
@@ -735,8 +762,9 @@ class AppStore extends ChangeNotifier {
     _disposed = true;
     _saveTimer?.cancel();
     _focusTimer?.cancel();
-    island.dispose();
+    focusState.removeListener(_syncLive);
     focusState.dispose();
+    island.dispose();
     super.dispose();
   }
 }

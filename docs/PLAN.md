@@ -143,15 +143,15 @@ new-nova/
   - `NeuToggle`: مسار غاطس وزرار بارز مع توهّج أزرق.
   - `NeuField`: حقل إدخال غاطس مع validation.
   - `NeuSegmented`: اختيار أولوية.
-- [ ] `island.dart`: نظام الـ Dynamic Island.
+- [x] `island.dart`: نظام الـ Dynamic Island.
   - `IslandController`: `toast(title, icon, {action})` و`showContext(actions)` و`setLive(...)` و`clearLive()` و`expand()` و`collapse()` و`dismiss()`.
   - `IslandHost`: طبقة فوق الـ Navigator بتتركّب في `MaterialApp.builder`، فبتظهر فوق كل الشاشات والـ dialogs.
   - حركة الانتقال من compact لـ expanded بـ `SpringSimulation`، مع swipe لأعلى للإغلاق.
-- [ ] `floating_nav.dart`: `FloatingNavBar` شريط زجاجي عايم بـ 4 تابات، ومؤشر نشط بيتحرك بـ spring مع توهّج أزرق خفيف.
-- [ ] `components.dart`: `ScreenScaffold` و`SectionHeader` و`NovaChip` و`PriorityDot` و`TaskTile` و`StatTile` و`ProgressRing` و`Avatar` و`SettingsRow`.
-- [ ] `charts.dart`: `WeekBarChart` بـ `CustomPainter`، 7 أعمدة مع خط الهدف اليومي.
-- [ ] `states.dart`: `EmptyState` و`ErrorState` (مع Retry) و`SkeletonList` (shimmer بـ controller واحد بيتقفل أول ما التحميل يخلص).
-- [ ] `overlays.dart`: `showNovaDialog` (dialog زجاجي) و`showNovaSheet` (bottom sheet يراعي الكيبورد وله drag handle).
+- [x] `floating_nav.dart`: `FloatingNavBar` شريط زجاجي عايم بـ 4 تابات، ومؤشر نشط بيتحرك بـ spring مع توهّج أزرق خفيف.
+- [x] `components.dart`: `ScreenScaffold` و`SectionHeader` و`NovaChip` و`PriorityDot` و`TaskTile` و`StatTile` و`ProgressRing` و`Avatar` و`SettingsRow`.
+- [x] `charts.dart`: `WeekBarChart` بـ `CustomPainter`، 7 أعمدة مع خط الهدف اليومي.
+- [x] `states.dart`: `EmptyState` و`ErrorState` (مع Retry) و`SkeletonList` (shimmer بـ controller واحد بيتقفل أول ما التحميل يخلص).
+- [x] `overlays.dart`: `showNovaDialog` (dialog زجاجي) و`showNovaSheet` (bottom sheet يراعي الكيبورد وله drag handle).
 
 ### الخطوة 5: الشاشات (`lib/screens/`)
 

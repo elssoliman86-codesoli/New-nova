@@ -15,6 +15,22 @@ abstract final class NovaSpring {
       SpringDescription(mass: 1, stiffness: 300, damping: 34);
 }
 
+/// Curve that follows a damped spring: a small overshoot, then it settles.
+/// Use it with implicit animations (AnimatedPositioned, AnimatedContainer).
+class SpringCurve extends Curve {
+  SpringCurve([SpringDescription spring = NovaSpring.island])
+      : _sim = SpringSimulation(spring, 0, 1, 0);
+
+  static const double _seconds = 0.5;
+  final SpringSimulation _sim;
+
+  @override
+  double transformInternal(double t) {
+    if (t >= 1) return 1;
+    return _sim.x(t * _seconds);
+  }
+}
+
 /// Animates [controller] to [target] with a spring, carrying over the current
 /// velocity so interrupted motion stays continuous.
 ///
