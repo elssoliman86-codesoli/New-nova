@@ -265,7 +265,7 @@ class NovaIslandService : Service() {
     }
 
     private fun registerPhoneState() {
-        if (checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
         telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
         try {
             if (Build.VERSION.SDK_INT >= 31) {
