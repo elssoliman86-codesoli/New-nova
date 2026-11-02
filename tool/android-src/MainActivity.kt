@@ -32,7 +32,11 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "startIsland" -> {
-                        if (!(Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this))) {
+                        val missing = requiredRuntimePermissions().filter { checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+                        if (missing.isNotEmpty()) {
+                            requestPermissions(missing.toTypedArray(), 731)
+                            result.success(null)
+                        } else if (!(Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this))) {
                             result.error("OVERLAY_PERMISSION_REQUIRED", "Grant display-over-other-apps permission first.", null)
                         } else {
                             val intent = Intent(this, NovaIslandService::class.java).setAction(NovaIslandService.ACTION_START)
@@ -47,6 +51,11 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    private fun requiredRuntimePermissions(): List<String> = buildList {
+        if (Build.VERSION.SDK_INT >= 31) add(android.Manifest.permission.BLUETOOTH_CONNECT)
+        add(android.Manifest.permission.READ_PHONE_STATE)
     }
 
     private fun isNotificationAccessGranted(): Boolean {
