@@ -132,6 +132,11 @@ class NovaIslandService : Service() {
                 startAsForeground()
                 refreshMediaSessions()
             }
+            ACTION_REFRESH_PERMISSIONS -> {
+                startAsForeground()
+                registerPhoneState()
+                refreshMediaSessions()
+            }
             ACTION_MEDIA_CONTROL -> handleMediaControl(intent.getStringExtra(EXTRA_CONTROL).orEmpty())
             ACTION_SHOW_EVENT_FROM_SYSTEM -> {
                 startAsForeground()
@@ -297,12 +302,7 @@ class NovaIslandService : Service() {
             else @Suppress("DEPRECATION") intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
         } catch (_: Exception) { null }
         var level = intent.getIntExtra("android.bluetooth.device.extra.BATTERY_LEVEL", -1)
-        if (level !in 0..100 && device != null && Build.VERSION.SDK_INT >= 33) {
-            level = try {
-                val method = BluetoothDevice::class.java.getMethod("getBatteryLevel")
-                method.invoke(device) as? Int ?: -1
-            } catch (_: Exception) { -1 }
-        }
+
         val name = try { device?.name?.take(24) } catch (_: SecurityException) { null }
         if (level in 0..100) showText("Headphone battery", (name ?: "Bluetooth device") + " • " + level + "%")
         else showText("Headphones", (name ?: "Bluetooth device") + " connected • battery unavailable")
@@ -374,6 +374,7 @@ class NovaIslandService : Service() {
         const val ACTION_STOP = "com.codesoli.nova.STOP_ISLAND"
         const val ACTION_SHOW_EVENT = "com.codesoli.nova.SHOW_EVENT"
         const val ACTION_MEDIA_REFRESH = "com.codesoli.nova.MEDIA_REFRESH"
+        const val ACTION_REFRESH_PERMISSIONS = "com.codesoli.nova.REFRESH_PERMISSIONS"
         const val ACTION_MEDIA_CONTROL = "com.codesoli.nova.MEDIA_CONTROL"
         const val ACTION_SHOW_EVENT_FROM_SYSTEM = "com.codesoli.nova.SYSTEM_EVENT"
         const val EXTRA_TITLE = "title"
