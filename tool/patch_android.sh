@@ -31,7 +31,7 @@ XML
 cat > "$RES_DIR/values/nova_strings.xml" <<'XML'
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="nova_accessibility_description">Lets the Nova assistant read the text on screen, type what you dictate and press buttons when you ask it to.</string>
+    <string name="nova_accessibility_description">Lets the Soli assistant read the text on screen, type what you dictate and press buttons when you ask it to.</string>
 </resources>
 XML
 
@@ -75,6 +75,10 @@ query_intents = """        <intent>
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
         <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+        <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
         <intent>
@@ -109,7 +113,7 @@ components = """
         </service>
         <service
             android:name=".NovaAccessibilityService"
-            android:label="Nova assistant"
+            android:label="Soli assistant"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
             <intent-filter>

@@ -25,6 +25,13 @@ class NovaNotificationListener : NotificationListenerService() {
         val isNavigation = category == Notification.CATEGORY_NAVIGATION ||
             sbn.packageName.contains("maps", ignoreCase = true) || sbn.packageName.contains("waze", ignoreCase = true)
 
+        // The dialer's own notification carries the caller's name for the call pill.
+        if (category == Notification.CATEGORY_CALL) {
+            val name = notification.extras.getCharSequence("android.title")?.toString().orEmpty()
+            NovaIslandService.instance?.callNotification(name)
+            return
+        }
+
         // Media notifications are handled through the media session.
         if (category == Notification.CATEGORY_TRANSPORT) {
             NovaIslandService.instance?.externalMediaRefresh()

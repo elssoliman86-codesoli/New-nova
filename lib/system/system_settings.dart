@@ -22,6 +22,8 @@ const List<IslandModule> islandModules = [
   IslandModule('audio', 'Headphones', 'Bluetooth and wired audio devices',
       Icons.headphones_rounded),
   IslandModule('call', 'Calls', 'Incoming and ongoing calls', Icons.call_rounded),
+  IslandModule('apps', 'App switching', 'A small animation when you move between apps',
+      Icons.swap_horiz_rounded),
   IslandModule('network', 'Network', 'Wi-Fi and mobile data changes',
       Icons.wifi_rounded),
   IslandModule('prayer', 'Prayer times', 'A reminder at each prayer',
@@ -32,6 +34,7 @@ const List<IslandModule> islandModules = [
 
 const String defaultAiModel = 'meta/llama-3.3-70b-instruct';
 const String defaultAiBaseUrl = 'https://integrate.api.nvidia.com/v1';
+const String defaultWakeWords = 'soli,solly,sully,سولي,سولى';
 
 /// Settings for the system island, prayer times and the voice assistant.
 /// Stored with the rest of the app data and pushed to the native service.
@@ -48,10 +51,11 @@ class SystemSettings {
     this.aiKey = '',
     this.aiModel = defaultAiModel,
     this.aiBaseUrl = defaultAiBaseUrl,
-    this.wakeWords = 'نوفا,nova',
-    this.aiLanguage = 'ar-EG',
+    this.wakeWords = defaultWakeWords,
+    this.aiLanguage = 'auto',
     this.aiSpeak = true,
     this.requireWake = true,
+    this.quietWhileWatching = true,
   });
 
   final List<String> disabledModules;
@@ -74,6 +78,9 @@ class SystemSettings {
   final String aiLanguage;
   final bool aiSpeak;
   final bool requireWake;
+
+  /// Hold notifications and messages while a video is playing.
+  final bool quietWhileWatching;
 
   PrayerCity get city =>
       prayerCities[cityIndex < 0 || cityIndex >= prayerCities.length ? 0 : cityIndex];
@@ -105,6 +112,7 @@ class SystemSettings {
     String? aiLanguage,
     bool? aiSpeak,
     bool? requireWake,
+    bool? quietWhileWatching,
   }) {
     return SystemSettings(
       disabledModules: disabledModules ?? this.disabledModules,
@@ -122,6 +130,7 @@ class SystemSettings {
       aiLanguage: aiLanguage ?? this.aiLanguage,
       aiSpeak: aiSpeak ?? this.aiSpeak,
       requireWake: requireWake ?? this.requireWake,
+      quietWhileWatching: quietWhileWatching ?? this.quietWhileWatching,
     );
   }
 
@@ -141,6 +150,7 @@ class SystemSettings {
         'aiLanguage': aiLanguage,
         'aiSpeak': aiSpeak,
         'requireWake': requireWake,
+        'quietWhileWatching': quietWhileWatching,
       };
 
   factory SystemSettings.fromJson(Map<String, dynamic> json) {
@@ -163,10 +173,17 @@ class SystemSettings {
       aiKey: json['aiKey'] is String ? json['aiKey'] as String : '',
       aiModel: s('aiModel', defaultAiModel),
       aiBaseUrl: s('aiBaseUrl', defaultAiBaseUrl),
-      wakeWords: s('wakeWords', 'نوفا,nova'),
-      aiLanguage: s('aiLanguage', 'ar-EG'),
+      wakeWords: _migrateWake(s('wakeWords', defaultWakeWords)),
+      aiLanguage: _migrateLanguage(s('aiLanguage', 'auto')),
       aiSpeak: b('aiSpeak', true),
       requireWake: b('requireWake', true),
+      quietWhileWatching: b('quietWhileWatching', true),
     );
   }
 }
+
+/// The assistant was called Nova before it became Soli.
+String _migrateWake(String value) => value == 'نوفا,nova' ? defaultWakeWords : value;
+
+/// The old default was a single Arabic dialect; the new default understands all three languages.
+String _migrateLanguage(String value) => value == 'ar-EG' ? 'auto' : value;

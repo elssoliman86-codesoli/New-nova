@@ -85,4 +85,18 @@ class SystemIslandBridge {
 
   static Future<void> assistantListen() =>
       _channel.invokeMethod<void>('assistantListen');
+
+  /// Facts the assistant saved about the user. They live only on this phone.
+  static Future<List<Map<Object?, Object?>>> memoryList() async {
+    final result = await _channel.invokeListMethod<Map<Object?, Object?>>('memoryList');
+    return result ?? const <Map<Object?, Object?>>[];
+  }
+
+  static Future<bool> memoryAdd(String text) async =>
+      (await _channel.invokeMethod<bool>('memoryAdd', {'text': text})) ?? false;
+
+  static Future<void> memoryDelete(int id) =>
+      _channel.invokeMethod<void>('memoryDelete', {'id': id});
+
+  static Future<void> memoryClear() => _channel.invokeMethod<void>('memoryClear');
 }

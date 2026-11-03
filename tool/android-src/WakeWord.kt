@@ -117,6 +117,13 @@ class WakeWordDetector(
     @Volatile private var running = false
     @Volatile private var paused = false
     private var thread: Thread? = null
+    private val parts: Set<String> = words.flatMap { it.split(' ') }.toSet()
+
+    private fun hears(text: String): Boolean {
+        if (text.isBlank()) return false
+        val padded = " $text "
+        return words.any { padded.contains(" $it ") }
+    }
 
     fun start() {
         if (running) return
@@ -164,6 +171,7 @@ class WakeWordDetector(
             model = Model(dir.absolutePath)
             val grammar = words.joinToString(prefix = "[", postfix = ", \"[unk]\"]", separator = ", ") { "\"$it\"" }
             recognizer = Recognizer(model, SAMPLE_RATE.toFloat(), grammar)
+            recognizer.setWords(true)
             IslandState.wakeStatus = "Listening for the wake word (offline)"
             onReady()
             val buffer = ShortArray(1600)
@@ -183,11 +191,32 @@ class WakeWordDetector(
                 val n = record.read(buffer, 0, buffer.size)
                 if (n <= 0) { Thread.sleep(30); continue }
                 val isFinal = recognizer.acceptWaveForm(buffer, n)
-                val text = try {
-                    if (isFinal) JSONObject(recognizer.result).optString("text")
-                    else JSONObject(recognizer.partialResult).optString("partial")
-                } catch (_: Exception) { "" }
-                if (text.isNotBlank() && text.split(' ').any { it in words }) {
+                // While something is playing the speaker can fool the detector,
+                // so only finished phrases with good confidence count.
+                val strict = IslandState.mediaBusy || IslandState.watching
+                var hit = false
+                try {
+                    if (isFinal) {
+                        val json = JSONObject(recognizer.result)
+                        val text = json.optString("text")
+                        if (hears(text)) {
+                            val items = json.optJSONArray("result")
+                            var sum = 0.0
+                            var count = 0
+                            if (items != null) {
+                                for (k in 0 until items.length()) {
+                                    val o = items.getJSONObject(k)
+                                    if (o.optString("word") in parts) { sum += o.optDouble("conf", 1.0); count++ }
+                                }
+                            }
+                            val conf = if (count > 0) sum / count else 1.0
+                            hit = conf >= (if (strict) 0.9 else 0.6)
+                        }
+                    } else if (!strict) {
+                        hit = hears(JSONObject(recognizer.partialResult).optString("partial"))
+                    }
+                } catch (_: Exception) { }
+                if (hit) {
                     recognizer.reset()
                     paused = true
                     onWake()

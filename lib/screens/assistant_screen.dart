@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/motion.dart';
 import '../core/tokens.dart';
 import '../data/app_scope.dart';
 import '../data/app_store.dart';
@@ -9,6 +10,7 @@ import '../system/system_models.dart';
 import '../ui/components.dart';
 import '../ui/glass.dart';
 import '../ui/neu.dart';
+import 'memory_screen.dart';
 
 /// Voice assistant: NVIDIA model, wake word, permissions and a test box.
 class AssistantScreen extends StatefulWidget {
@@ -286,12 +288,18 @@ class _AssistantScreenState extends State<AssistantScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Speech language', style: NovaType.label),
+                    const SizedBox(height: NovaSpace.xs),
+                    const Text(
+                      'Auto understands Arabic, English and Russian mixed together (best effort).',
+                      style: NovaType.caption,
+                    ),
                     const SizedBox(height: NovaSpace.sm),
                     NeuSegmented<String>(
                       segments: const [
-                        NeuSegment<String>(value: 'ar-EG', label: 'عربي مصري'),
-                        NeuSegment<String>(value: 'ar-SA', label: 'عربي'),
-                        NeuSegment<String>(value: 'en-US', label: 'English'),
+                        NeuSegment<String>(value: 'auto', label: 'Auto 3'),
+                        NeuSegment<String>(value: 'ar-EG', label: 'عربي'),
+                        NeuSegment<String>(value: 'en-US', label: 'EN'),
+                        NeuSegment<String>(value: 'ru-RU', label: 'RU'),
                       ],
                       value: sys.aiLanguage,
                       onChanged: (v) => store.updateSystemSettings(sys.copyWith(aiLanguage: v)),
@@ -306,6 +314,17 @@ class _AssistantScreenState extends State<AssistantScreen> {
                     ),
                   ],
                 ),
+              ),
+              const SectionHeader(title: 'Memory'),
+              SettingsGroup(
+                children: [
+                  SettingsRow(
+                    icon: Icons.psychology_alt_rounded,
+                    title: 'What Soli remembers',
+                    subtitle: 'Facts saved on this phone. Add, review or delete them',
+                    onTap: () => pushNova(context, (_) => const MemoryScreen()),
+                  ),
+                ],
               ),
               const SectionHeader(title: 'Permissions'),
               _Permissions(snap: snap),
@@ -521,15 +540,16 @@ class _Examples extends StatelessWidget {
   const _Examples();
 
   static const List<String> _lines = [
-    'نوفا، شغل أغنية عمرو دياب على يوتيوب',
-    'نوفا، شغل فيديو عن طريقة عمل الكشري',
-    'نوفا، اتصل بـ أحمد',
-    'نوفا، ابعت لماما على واتساب إني جاي',
-    'نوفا، افتح تليجرام / افتح الكتاب',
-    'نوفا، اقرأ الصفحة / ترجم الصفحة / لخص الصفحة',
-    'نوفا، اكتب وراي  (وبعدها قول "خلاص" عشان توقف)',
-    'نوفا، ابحث في جوجل عن سعر الدولار',
-    'نوفا، وقف الأغنية / الأغنية اللي بعدها',
+    'سولي، شغل أغنية عمرو دياب على يوتيوب',
+    'Soli, play Imagine Dragons Believer',
+    'سولي، اعرضلي رسايل الواتس (لو مقفول استنى لما تفتحه وبعدين اسألك تفتح انهي شات)',
+    'سولي، اقرأ الصفحة / ترجم الصفحة / لخص الصفحة',
+    'سولي، اكتب ورايا  (وبعدها قول "خلاص" عشان توقف)',
+    'سولي، عايز أعرف سعر آيفون 15 في مصر بالجنيه',
+    'سولي، احفظ المعلومة إن عمري ٢١ وأنا طالب',
+    'سولي، سن التجنيد امتى؟',
+    'سولي، ابعت لماما على واتساب إني جاي',
+    'سولي، وقف الأغنية / الأغنية اللي بعدها',
   ];
 
   @override

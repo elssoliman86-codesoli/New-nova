@@ -5,6 +5,8 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.app.Service
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -51,8 +53,8 @@ import java.util.concurrent.Executors
 private class IslandEvent(
     val kind: String,
     val key: String,
-    val title: String,
-    val body: String,
+    var title: String,
+    var body: String,
     val icon: String,
     val tint: Int,
     val priority: Int,
@@ -74,6 +76,36 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
     private var lastShownAt = 0L
     private var hiddenUntil = 0L
     private val expireRunnable = Runnable { expireCurrent() }
+
+    // answer card
+    private var answerCard: AnswerCard? = null
+    private val answerDismiss = Runnable { hideAnswer(true) }
+
+    // foreground app, watching mode, calls
+    private var foreground = ""
+    private var watchPackage = ""
+    private var watchHits = 0
+    private var watchMisses = 0
+    private var lastAppEventAt = 0L
+    private var homePackages: Set<String>? = null
+    private var usageSince = 0L
+    private var usageCurrent: String? = null
+    private val quietApps = LinkedHashSet<String>()
+    private var quietNotifications = 0
+    private var callStartedAt = 0L
+    private var callerName = ""
+    private val watchRunnable = object : Runnable {
+        override fun run() {
+            watchTick()
+            main.postDelayed(this, 1500L)
+        }
+    }
+    private val callRunnable = object : Runnable {
+        override fun run() {
+            tickCall()
+            main.postDelayed(this, 1000L)
+        }
+    }
 
     // assistant
     private lateinit var assistant: AssistantEngine
@@ -191,6 +223,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         main.postDelayed(slideRunnable, 4500)
         main.post(calendarRunnable)
         main.postDelayed(reminderRunnable, 30_000L)
+        main.postDelayed(watchRunnable, 2000L)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -248,6 +281,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
     private fun shutdown() {
         main.removeCallbacksAndMessages(null)
         try { assistant.stop() } catch (_: Exception) { }
+        hideAnswer(false)
         removeView(animated = false)
         stopForegroundCompat()
         stopSelf()
@@ -304,6 +338,8 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         "media" -> Triple("🎵", 0xFFFF6B9A.toInt(), 40 to 4_500L)
         "notification" -> Triple("🔔", 0xFF42C8FF.toInt(), 35 to 4_500L)
         "network" -> Triple("📶", 0xFF8C9BB5.toInt(), 20 to 3_000L)
+        "apps" -> Triple("↗", 0xFF8C9BB5.toInt(), 25 to 1_700L)
+        "summary" -> Triple("🔔", 0xFFFFB84D.toInt(), 55 to 7_000L)
         else -> Triple("●", 0xFF398BFF.toInt(), 30 to 4_000L)
     }
 
@@ -314,14 +350,24 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         body: String = "",
         icon: String? = null,
         durationMs: Long? = null,
+        force: Boolean = false,
     ) {
         if (kind != "test" && !IslandConfig.enabled(kind)) return
+        if (!force && IslandState.watching && IslandConfig.quietWhileWatching && kind in QUIET_KINDS) {
+            IslandState.suppressed++
+            if (kind == "notification") {
+                quietNotifications++
+                quietApps.add(title.substringBefore(" • ").take(24))
+            }
+            return
+        }
         val (defIcon, tint, pd) = spec(kind)
         val event = IslandEvent(kind, key, title, body, icon ?: defIcon, tint, pd.first, durationMs ?: pd.second)
         val now = System.currentTimeMillis()
         val cur = current
         if (cur != null && cur.key == key) { display(event, samePlace = true); return }
         if (cur != null && cur.priority > event.priority) {
+            if (kind == "apps") return
             queue.removeAll { it.key == key }
             queue.add(event)
             if (queue.size > 6) queue.minByOrNull { it.priority }?.let { queue.remove(it) }
@@ -343,8 +389,10 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         main.removeCallbacks(expireRunnable)
         main.postDelayed(expireRunnable, event.durationMs)
         hiddenUntil = 0L
+        val existed = view != null
         renderCurrent(true)
-        if (samePlace) view?.pop()
+        if (existed && event.kind == "apps") view?.swoosh()
+        else if (samePlace) view?.pop()
     }
 
     private fun expireCurrent() {
@@ -550,6 +598,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
     }
 
     private fun assistantModel(): IslandModel? {
+        if (answerCard != null && (assistantStateName == "awake" || assistantStateName == "speaking")) return null
         val icon = when (assistantStateName) {
             "awake" -> "🎙"
             "thinking" -> "🧠"
@@ -565,7 +614,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         val title = when (assistantStateName) {
             "awake" -> if (assistantText.isBlank()) "Listening…" else assistantText
             "thinking" -> "Thinking…"
-            "speaking" -> "Nova"
+            "speaking" -> "Soli"
             else -> "Assistant"
         }
         val body = when (assistantStateName) {
@@ -601,6 +650,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
             )
             System.currentTimeMillis() < hiddenUntil -> null
             IslandConfig.mediaMini && IslandState.mediaActive && IslandState.mediaTitle.isNotBlank() -> mediaModel()
+            IslandState.watching && IslandConfig.quietWhileWatching -> null
             IslandConfig.idleEnabled -> idleModel()
             else -> null
         }
@@ -672,6 +722,9 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
 
     override fun onTap() {
         when {
+            assistantStateName == "thinking" -> assistant.cancelTask()
+            answerCard != null -> hideAnswer(true)
+            current != null && current?.kind == "call" -> { }
             current != null -> { main.removeCallbacks(expireRunnable); expireCurrent() }
             AssistantConfig.enabled && AssistantConfig.apiKey.isNotBlank() -> assistant.listenNow()
             else -> openApp()
@@ -712,6 +765,55 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
 
     override fun mediaControl(action: String) = handleMediaControl(action)
 
+    override fun showAnswer(title: String, text: String) {
+        main.post { presentAnswer(title, text) }
+    }
+
+    private fun presentAnswer(title: String, text: String) {
+        if (!SystemData.overlayGranted(this) || text.isBlank()) return
+        hideAnswer(false)
+        val card = AnswerCard(this) { hideAnswer(true) }
+        val density = resources.displayMetrics.density
+        @Suppress("DEPRECATION")
+        val type = if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        else WindowManager.LayoutParams.TYPE_PHONE
+        val params = WindowManager.LayoutParams(
+            (resources.displayMetrics.widthPixels * 0.92f).toInt(),
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            type,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            y = (66 * density).toInt()
+            if (Build.VERSION.SDK_INT >= 28) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            }
+        }
+        try {
+            windowManager?.addView(card, params)
+            answerCard = card
+            card.post { card.animateIn() }
+            val duration = card.show(title, text)
+            main.removeCallbacks(answerDismiss)
+            main.postDelayed(answerDismiss, duration)
+            renderCurrent(false)
+        } catch (_: Exception) {
+            answerCard = null
+        }
+    }
+
+    private fun hideAnswer(animated: Boolean) {
+        main.removeCallbacks(answerDismiss)
+        val card = answerCard ?: return
+        answerCard = null
+        val remove = { try { windowManager?.removeView(card) } catch (_: Exception) { } }
+        if (animated) card.animateOut { remove() } else remove()
+        if (animated) renderCurrent(false)
+    }
+
     private fun syncAssistant() {
         AssistantConfig.load(this)
         if (AssistantConfig.enabled) {
@@ -739,7 +841,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
             charging != wasCharging ->
                 post("battery", "battery", if (charging) "Charging" else "Unplugged", "$percent%", if (charging) "⚡" else "🔌")
             !charging && ((percent <= 20 && previous > 20) || (percent <= 10 && previous > 10) || (percent <= 5 && previous > 5)) ->
-                post("battery", "battery", "Battery low", "$percent%", "🪫")
+                post("battery", "battery", "Battery low", "$percent%", "🪫", force = percent <= 10)
             charging && percent == 100 && previous != 100 ->
                 post("battery", "battery", "Fully charged", "100%", "🔋")
         }
@@ -863,16 +965,190 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         when (state) {
             TelephonyManager.CALL_STATE_RINGING -> {
                 assistant.pause()
-                post("call", "call", "Incoming call", "Phone is ringing", "📞")
+                IslandState.inCall = true
+                main.removeCallbacks(callRunnable)
+                post("call", "call", "Incoming call", callerName.ifBlank { "Phone is ringing" }, "📞", 60_000L, force = true)
             }
             TelephonyManager.CALL_STATE_OFFHOOK -> {
                 assistant.pause()
-                post("call", "call", "On call", "Call in progress", "📞", 8_000L)
+                IslandState.inCall = true
+                if (previous != TelephonyManager.CALL_STATE_OFFHOOK) callStartedAt = System.currentTimeMillis()
+                post("call", "call", "00:00", callerName.ifBlank { "On call" }, "📞", 8 * 3600_000L, force = true)
+                main.removeCallbacks(callRunnable)
+                main.post(callRunnable)
             }
             TelephonyManager.CALL_STATE_IDLE -> {
+                main.removeCallbacks(callRunnable)
+                IslandState.inCall = false
                 if (AssistantConfig.enabled) assistant.resume()
-                if (previous != TelephonyManager.CALL_STATE_IDLE) post("call", "call", "Call ended", "", "📵", 3_000L)
+                if (previous != TelephonyManager.CALL_STATE_IDLE) {
+                    val took = if (callStartedAt > 0) fmtTimer(System.currentTimeMillis() - callStartedAt) else ""
+                    queue.removeAll { it.kind != "prayer" && it.kind != "calendar" }
+                    post("call", "call", "Call ended", took, "📵", 4_000L, force = true)
+                }
+                callStartedAt = 0L
+                callerName = ""
             }
+        }
+    }
+
+    private fun fmtTimer(ms: Long): String {
+        val total = (ms / 1000).coerceAtLeast(0)
+        val h = total / 3600
+        val m = (total % 3600) / 60
+        val sec = total % 60
+        return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%02d:%02d".format(m, sec)
+    }
+
+    /** Keeps the call pill's timer running (no pop, just new text). */
+    private fun tickCall() {
+        if (callState != TelephonyManager.CALL_STATE_OFFHOOK) return
+        val cur = current ?: return
+        if (cur.kind != "call") return
+        cur.title = fmtTimer(System.currentTimeMillis() - callStartedAt)
+        cur.body = callerName.ifBlank { "On call" }
+        renderCurrent(false)
+    }
+
+    /** Name of the caller, taken from the dialer's own notification. */
+    fun callNotification(name: String) {
+        main.post {
+            if (name.isBlank()) return@post
+            callerName = name.take(40)
+            val cur = current
+            if (cur != null && cur.kind == "call") {
+                cur.body = callerName
+                renderCurrent(false)
+            }
+        }
+    }
+
+    // ------------------------------------------------- foreground / watching
+
+    private fun homeSet(): Set<String> {
+        homePackages?.let { return it }
+        val found = try {
+            packageManager.queryIntentActivities(
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
+            ).map { it.activityInfo.packageName }.toSet()
+        } catch (_: Exception) { emptySet() }
+        homePackages = found
+        return found
+    }
+
+    private fun isHome(pkg: String): Boolean =
+        pkg in homeSet() || pkg.contains("launcher", ignoreCase = true) || pkg.contains("home", ignoreCase = true) && pkg.startsWith("com.android")
+
+    private fun isMusicPackage(pkg: String): Boolean {
+        val p = pkg.lowercase()
+        return listOf("music", "spotify", "anghami", "soundcloud", "deezer", "podcast", "radio", "audio", "tidal",
+            "shazam", "quran", "recorder").any { p.contains(it) }
+    }
+
+    /** Called by the accessibility service whenever another app's window comes to the front. */
+    fun onForegroundChanged(pkg: String) {
+        main.post { foregroundChanged(pkg) }
+    }
+
+    private fun foregroundChanged(pkg: String) {
+        if (pkg == foreground) return
+        val previous = foreground
+        foreground = pkg
+        IslandState.foregroundPackage = pkg
+        if (previous.isEmpty()) return
+        if (IslandState.watching && pkg != watchPackage) stopWatching()
+        if (callState != TelephonyManager.CALL_STATE_IDLE || pkg == packageName) return
+        val now = System.currentTimeMillis()
+        if (now - lastAppEventAt < 900L) return
+        lastAppEventAt = now
+        val home = isHome(pkg)
+        val label = if (home) "Home" else SystemData.appLabel(this, pkg)
+        post("apps", "apps:$pkg", label, "", if (home) "🏠" else "↗")
+        main.postDelayed({ watchTick() }, 400L)
+    }
+
+    /** Fallback when the accessibility service is off: read the foreground app from usage stats. */
+    private fun foregroundFromUsage(): String? {
+        if (!SystemData.usageAccessGranted(this)) return null
+        return try {
+            val usm = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+            val end = System.currentTimeMillis()
+            val begin = if (usageSince == 0L) end - 10 * 60 * 1000L else usageSince
+            val events = usm.queryEvents(begin, end)
+            val event = UsageEvents.Event()
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                when (event.eventType) {
+                    1 -> usageCurrent = event.packageName
+                    2 -> if (event.packageName == usageCurrent) usageCurrent = null
+                }
+            }
+            usageSince = end - 1000L
+            usageCurrent
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** Works out whether a video (or any non-music app with sound) is in front. */
+    private fun watchTick() {
+        if (!IslandState.a11yConnected) foregroundFromUsage()?.let { foregroundChanged(it) }
+        val fg = foreground
+        val audible = try {
+            (getSystemService(Context.AUDIO_SERVICE) as AudioManager).isMusicActive
+        } catch (_: Exception) { false }
+        val sessionPkg = IslandState.mediaPackage
+        val sessionPlaying = IslandState.mediaPlaying
+        val fgUsable = fg.isNotEmpty() && fg != packageName && !isHome(fg)
+        val videoNow = fgUsable && !isMusicPackage(fg) && callState == TelephonyManager.CALL_STATE_IDLE &&
+            ((sessionPlaying && sessionPkg == fg) ||
+                (audible && (sessionPkg.isEmpty() || sessionPkg == fg || !sessionPlaying)))
+        if (videoNow) {
+            watchMisses = 0
+            watchHits++
+            if (watchHits >= 2 && !IslandState.watching) startWatching(fg)
+            else if (IslandState.watching && fg != watchPackage) { stopWatching(); startWatching(fg) }
+        } else {
+            watchHits = 0
+            if (IslandState.watching) {
+                watchMisses++
+                if (watchMisses >= 3) stopWatching()
+            }
+        }
+    }
+
+    private fun startWatching(pkg: String) {
+        watchPackage = pkg
+        IslandState.watching = true
+        IslandState.watchingApp = SystemData.appLabel(this, pkg)
+        IslandState.suppressed = 0
+        quietNotifications = 0
+        quietApps.clear()
+        val title = if (IslandState.mediaPackage == pkg) IslandState.mediaTitle else ""
+        val body = if (IslandConfig.quietWhileWatching) {
+            (if (title.isNotBlank() && title != IslandState.watchingApp) title + " · " else "") + "Notifications paused"
+        } else title
+        post("media", "watching", "Watching • " + IslandState.watchingApp, body, "🎬", 5_500L, force = true)
+    }
+
+    private fun stopWatching() {
+        if (!IslandState.watching) return
+        IslandState.watching = false
+        watchPackage = ""
+        watchMisses = 0
+        val count = quietNotifications
+        val apps = quietApps.filter { it.isNotBlank() }.joinToString(", ")
+        quietNotifications = 0
+        quietApps.clear()
+        IslandState.suppressed = 0
+        if (count > 0) {
+            post(
+                "summary", "summary",
+                if (count == 1) "1 notification while you watched" else "$count notifications while you watched",
+                apps, "🔔", 7_000L, force = true
+            )
+        } else {
+            renderCurrent(false)
         }
     }
 
@@ -937,6 +1213,15 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
             else -> all.firstOrNull()
         }
         activeController = primary
+        IslandState.mediaBusy = all.any {
+            when (it.playbackState?.state) {
+                PlaybackState.STATE_PLAYING, PlaybackState.STATE_BUFFERING, PlaybackState.STATE_CONNECTING,
+                PlaybackState.STATE_FAST_FORWARDING, PlaybackState.STATE_REWINDING,
+                PlaybackState.STATE_SKIPPING_TO_NEXT, PlaybackState.STATE_SKIPPING_TO_PREVIOUS -> true
+                else -> false
+            }
+        }
+        IslandState.mediaPackage = primary?.packageName.orEmpty()
         if (primary == null) {
             IslandState.mediaActive = false
             IslandState.mediaPlaying = false
@@ -1103,6 +1388,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         if (instance === this) instance = null
         main.removeCallbacksAndMessages(null)
         try { assistant.stop() } catch (_: Exception) { }
+        hideAnswer(false)
         removeView(animated = false)
         try { if (receiverRegistered) unregisterReceiver(systemReceiver) } catch (_: Exception) { }
         try { audioCallback?.let { (getSystemService(Context.AUDIO_SERVICE) as AudioManager).unregisterAudioDeviceCallback(it) } } catch (_: Exception) { }
@@ -1147,6 +1433,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         const val ACTION_PRAYER_ALARM = "com.codesoli.nova.PRAYER_ALARM"
         const val ACTION_ASSISTANT_SUBMIT = "com.codesoli.nova.ASSISTANT_SUBMIT"
         const val ACTION_ASSISTANT_LISTEN = "com.codesoli.nova.ASSISTANT_LISTEN"
+        private val QUIET_KINDS = setOf("notification", "audio", "network", "battery", "media", "apps")
         const val EXTRA_TITLE = "title"
         const val EXTRA_BODY = "body"
         const val EXTRA_KIND = "kind"

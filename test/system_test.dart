@@ -77,4 +77,16 @@ void main() {
     expect(s.aiModel, defaultAiModel);
     expect(s.method.name, 'egyptian');
   });
+
+  test('old Nova settings migrate to Soli and auto language', () {
+    final old = SystemSettings.fromJson(<String, dynamic>{
+      'wakeWords': 'نوفا,nova',
+      'aiLanguage': 'ar-EG',
+    });
+    expect(old.wakeWords, defaultWakeWords);
+    expect(old.aiLanguage, 'auto');
+    expect(old.quietWhileWatching, isTrue);
+    final custom = SystemSettings.fromJson(<String, dynamic>{'wakeWords': 'jarvis'});
+    expect(custom.wakeWords, 'jarvis');
+  });
 }

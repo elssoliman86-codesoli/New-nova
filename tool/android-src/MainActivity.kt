@@ -91,6 +91,7 @@ class MainActivity : FlutterActivity() {
                     args["city"] as? String ?: IslandConfig.cityName,
                     (args["tasksToday"] as? Number)?.toInt() ?: IslandConfig.tasksToday,
                     args["nextTask"] as? String ?: IslandConfig.nextTask,
+                    args["quiet"] as? Boolean ?: IslandConfig.quietWhileWatching,
                 )
                 AssistantConfig.save(this, args)
                 if (IslandState.running) sendService(NovaIslandService.ACTION_CONFIG)
@@ -137,6 +138,15 @@ class MainActivity : FlutterActivity() {
                     .setAction(NovaIslandService.ACTION_ASSISTANT_LISTEN))
                 result.success(null)
             }
+            "memoryList" -> result.success(MemoryStore.all(this).reversed().map {
+                mapOf("id" to it.id, "text" to it.text, "at" to it.at)
+            })
+            "memoryAdd" -> result.success(MemoryStore.add(this, args["text"] as? String ?: ""))
+            "memoryDelete" -> {
+                (args["id"] as? Number)?.toLong()?.let { MemoryStore.remove(this, it) }
+                result.success(null)
+            }
+            "memoryClear" -> { MemoryStore.clear(this); result.success(null) }
             else -> result.notImplemented()
         }
     }

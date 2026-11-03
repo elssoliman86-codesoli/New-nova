@@ -374,6 +374,16 @@ class _IslandContent extends StatelessWidget {
             onChanged: (v) => store.updateSystemSettings(sys.copyWith(mediaMini: v)),
           ),
         ),
+        SettingsRow(
+          icon: Icons.notifications_paused_rounded,
+          title: 'Quiet while watching a video',
+          subtitle: 'Hold notifications and messages until you leave the video, then show a summary',
+          trailing: NeuToggle(
+            value: sys.quietWhileWatching,
+            semanticLabel: 'Quiet while watching',
+            onChanged: (v) => store.updateSystemSettings(sys.copyWith(quietWhileWatching: v)),
+          ),
+        ),
         for (final module in islandModules)
           SettingsRow(
             icon: module.icon,

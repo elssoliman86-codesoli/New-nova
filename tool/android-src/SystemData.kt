@@ -69,6 +69,14 @@ object IslandState {
 
     @Volatile var nextEventTitle = ""
     @Volatile var nextEventAt = 0L
+
+    @Volatile var mediaPackage = ""
+    @Volatile var mediaBusy = false
+    @Volatile var watching = false
+    @Volatile var watchingApp = ""
+    @Volatile var suppressed = 0
+    @Volatile var foregroundPackage = ""
+    @Volatile var inCall = false
 }
 
 /** User choices that must survive the app being closed (service restarts, reboot). */
@@ -89,6 +97,7 @@ object IslandConfig {
     @Volatile var latitude = 30.0444
     @Volatile var longitude = 31.2357
     @Volatile var prayerAlerts = true
+    @Volatile var quietWhileWatching = true
     @Volatile private var loaded = false
 
     fun load(context: Context) {
@@ -103,6 +112,7 @@ object IslandConfig {
         latitude = p.getFloat("lat", 30.0444f).toDouble()
         longitude = p.getFloat("lon", 31.2357f).toDouble()
         prayerAlerts = p.getBoolean(KEY_PRAYER_ALERTS, true)
+        quietWhileWatching = p.getBoolean("quiet", true)
         loaded = true
     }
 
@@ -118,6 +128,7 @@ object IslandConfig {
         city: String,
         tasks: Int,
         nextTaskTitle: String,
+        quiet: Boolean,
     ) {
         disabled = disabledKinds.toSet()
         mediaMini = mini
@@ -127,6 +138,7 @@ object IslandConfig {
         cityName = city
         tasksToday = tasks
         nextTask = nextTaskTitle
+        quietWhileWatching = quiet
         loaded = true
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putStringSet(KEY_DISABLED, disabled)
@@ -137,6 +149,7 @@ object IslandConfig {
             .putString("city", city)
             .putInt("tasksToday", tasks)
             .putString("nextTask", nextTaskTitle)
+            .putBoolean("quiet", quiet)
             .apply()
     }
 
@@ -496,6 +509,9 @@ object SystemData {
             "media" to mapOf(
                 "active" to IslandState.mediaActive,
                 "playing" to IslandState.mediaPlaying,
+                "watching" to IslandState.watching,
+                "watchingApp" to IslandState.watchingApp,
+                "suppressed" to IslandState.suppressed,
                 "title" to IslandState.mediaTitle,
                 "artist" to IslandState.mediaArtist,
                 "app" to IslandState.mediaApp

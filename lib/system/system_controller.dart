@@ -129,6 +129,7 @@ class SystemController extends ChangeNotifier {
           'language': s.aiLanguage,
           'speak': s.aiSpeak,
           'requireWake': s.requireWake,
+          'quiet': s.quietWhileWatching,
         }));
   }
 

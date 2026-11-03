@@ -170,6 +170,16 @@ class IslandView(context: Context, private val host: IslandHost) : LinearLayout(
             .setInterpolator(OvershootInterpolator(1.4f)).start()
     }
 
+    /** The stretch-and-settle used when you move between apps. */
+    fun swoosh() {
+        pivotX = width / 2f
+        animate().cancel()
+        scaleX = 1.22f
+        scaleY = 0.86f
+        animate().scaleX(1f).scaleY(1f).setDuration(420)
+            .setInterpolator(OvershootInterpolator(2.4f)).start()
+    }
+
     fun animateOut(end: () -> Unit) {
         pivotX = width / 2f
         animate().alpha(0f).scaleX(0.7f).scaleY(0.7f).translationY(-dp(16).toFloat())
