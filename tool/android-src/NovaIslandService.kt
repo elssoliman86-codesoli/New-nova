@@ -1097,17 +1097,21 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         val audible = try {
             (getSystemService(Context.AUDIO_SERVICE) as AudioManager).isMusicActive
         } catch (_: Exception) { false }
+        IslandState.audible = audible
         val sessionPkg = IslandState.mediaPackage
         val sessionPlaying = IslandState.mediaPlaying
-        val fgUsable = fg.isNotEmpty() && fg != packageName && !isHome(fg)
-        val videoNow = fgUsable && !isMusicPackage(fg) && callState == TelephonyManager.CALL_STATE_IDLE &&
-            ((sessionPlaying && sessionPkg == fg) ||
-                (audible && (sessionPkg.isEmpty() || sessionPkg == fg || !sessionPlaying)))
+        // Without accessibility or usage access the front app is unknown: trust the media session.
+        val front = if (fg.isNotEmpty()) fg else if (sessionPlaying || audible) sessionPkg else ""
+        val unknownFront = fg.isEmpty()
+        val fgUsable = front.isNotEmpty() && front != packageName && !isHome(front)
+        val videoNow = fgUsable && !isMusicPackage(front) && callState == TelephonyManager.CALL_STATE_IDLE &&
+            ((sessionPlaying && (unknownFront || sessionPkg == front)) ||
+                (audible && (sessionPkg.isEmpty() || sessionPkg == front || !sessionPlaying)))
         if (videoNow) {
             watchMisses = 0
             watchHits++
-            if (watchHits >= 2 && !IslandState.watching) startWatching(fg)
-            else if (IslandState.watching && fg != watchPackage) { stopWatching(); startWatching(fg) }
+            if (watchHits >= 2 && !IslandState.watching) startWatching(front)
+            else if (IslandState.watching && front != watchPackage) { stopWatching(); startWatching(front) }
         } else {
             watchHits = 0
             if (IslandState.watching) {

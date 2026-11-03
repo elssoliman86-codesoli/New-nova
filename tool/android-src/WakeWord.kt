@@ -225,7 +225,7 @@ class WakeWordDetector(
         } catch (_: InterruptedException) {
             // stopping
         } catch (e: Throwable) {
-            IslandState.wakeStatus = "Wake-word engine failed: " + (e.message ?: e.javaClass.simpleName).take(80)
+            IslandState.wakeStatus = "Wake-word engine failed: " + e.javaClass.simpleName + " " + (e.message ?: "").take(80)
         } finally {
             try { record?.stop() } catch (_: Exception) { }
             try { record?.release() } catch (_: Exception) { }

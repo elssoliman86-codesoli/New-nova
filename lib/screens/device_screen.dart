@@ -170,6 +170,14 @@ class _DeviceScreenState extends State<DeviceScreen> with WidgetsBindingObserver
                 : 'Nothing playing. Start a song or video in any app.',
       ),
       _Check(
+        icon: Icons.movie_outlined,
+        title: 'Video detection',
+        status: media.watching ? _Status.ok : _Status.info,
+        detail: 'Watching: ${media.watching ? 'yes' : 'no'} · sound: ${media.audible ? 'on' : 'off'}'
+            ' · media session: ${media.sessionPackage.isEmpty ? 'none' : media.sessionPackage}'
+            ' · front app: ${media.foregroundPackage.isEmpty ? 'unknown (turn on Accessibility)' : media.foregroundPackage}',
+      ),
+      _Check(
         icon: Icons.headphones_rounded,
         title: 'Headphones and Bluetooth',
         status: p.bluetooth ? _Status.ok : _Status.warn,

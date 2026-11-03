@@ -346,12 +346,10 @@ class AssistantEngine(private val context: Context, private val ui: Ui) : Recogn
             scheduleListen(500)
             return
         }
-        // Without the offline wake word the recogniser would interrupt music and
-        // videos, so it only runs when nothing at all is playing.
-        if (!passive && !active && !dictating &&
-            (IslandState.mediaActive || IslandState.mediaBusy || IslandState.watching || audioActive())
-        ) {
-            scheduleListen(3000)
+        // Without the offline wake word the system recogniser would grab audio focus
+        // and cut music and videos, so it never runs on its own: only after a tap
+        // on the island's mic (active) or while dictating.
+        if (!passive && !active && !dictating) {
             return
         }
         try {

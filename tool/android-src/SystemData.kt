@@ -72,6 +72,7 @@ object IslandState {
 
     @Volatile var mediaPackage = ""
     @Volatile var mediaBusy = false
+    @Volatile var audible = false
     @Volatile var watching = false
     @Volatile var watchingApp = ""
     @Volatile var suppressed = 0
@@ -510,6 +511,9 @@ object SystemData {
                 "active" to IslandState.mediaActive,
                 "playing" to IslandState.mediaPlaying,
                 "watching" to IslandState.watching,
+                "audible" to IslandState.audible,
+                "sessionPackage" to IslandState.mediaPackage,
+                "foregroundPackage" to IslandState.foregroundPackage,
                 "watchingApp" to IslandState.watchingApp,
                 "suppressed" to IslandState.suppressed,
                 "title" to IslandState.mediaTitle,

@@ -150,6 +150,16 @@ dependencies {
     implementation("net.java.dev.jna:jna:5.13.0@aar")
     implementation("com.alphacephei:vosk-android:0.3.47")
 }
+
+// R8 renames the native bindings of JNA and Vosk and breaks them at run time.
+android {
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+    }
+}
 KTS
   fi
 elif [ -f "$GRADLE_GROOVY" ]; then
@@ -159,6 +169,15 @@ elif [ -f "$GRADLE_GROOVY" ]; then
 dependencies {
     implementation 'net.java.dev.jna:jna:5.13.0@aar'
     implementation 'com.alphacephei:vosk-android:0.3.47'
+}
+
+android {
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
 }
 GRV
   fi

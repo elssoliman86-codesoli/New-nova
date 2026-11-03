@@ -62,6 +62,10 @@ class MediaState {
   String get title => _str(m['title']);
   String get artist => _str(m['artist']);
   String get app => _str(m['app']);
+  bool get watching => _bool(m['watching']);
+  bool get audible => _bool(m['audible']);
+  String get sessionPackage => _str(m['sessionPackage']);
+  String get foregroundPackage => _str(m['foregroundPackage']);
 }
 
 class AudioDevice {
