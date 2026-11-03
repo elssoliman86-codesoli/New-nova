@@ -308,7 +308,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         if (cur != null && cur.priority > event.priority) {
             queue.removeAll { it.key == key }
             queue.add(event)
-            if (queue.size > 6) queue.remove(queue.minByOrNull { it.priority })
+            if (queue.size > 6) queue.minByOrNull { it.priority }?.let { queue.remove(it) }
             return
         }
         if (key == lastKey && body == lastBody && now - lastShownAt < 4000) return

@@ -511,7 +511,7 @@ Rules: put "open_app" before "read_screen" when asked to open something then rea
         val engine = tts
         if (engine == null || !ttsReady) { scheduleListen(400); return }
         val arabic = text.any { it in '؀'..'ۿ' }
-        try { engine.language = if (arabic) Locale("ar") else Locale.US } catch (_: Exception) { }
+        try { engine.setLanguage(if (arabic) Locale("ar") else Locale.US) } catch (_: Exception) { }
         try { recognizer?.cancel() } catch (_: Exception) { }
         main.removeCallbacks(listenRunnable)
         val id = if (resumeAfter) "end" else "say"
@@ -525,7 +525,7 @@ Rules: put "open_app" before "read_screen" when asked to open something then rea
         val engine = tts ?: return
         if (!ttsReady) return
         val arabic = text.any { it in '؀'..'ۿ' }
-        try { engine.language = if (arabic) Locale("ar") else Locale.US } catch (_: Exception) { }
+        try { engine.setLanguage(if (arabic) Locale("ar") else Locale.US) } catch (_: Exception) { }
         try { recognizer?.cancel() } catch (_: Exception) { }
         main.removeCallbacks(listenRunnable)
         val chunks = text.chunked(3000)

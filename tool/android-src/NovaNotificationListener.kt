@@ -31,8 +31,8 @@ class NovaNotificationListener : NotificationListenerService() {
             if (IslandState.running) sendServiceAction(NovaIslandService.ACTION_MEDIA_REFRESH)
             return
         }
-        if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
-        if (notification.flags and Notification.FLAG_ONGOING_EVENT != 0 && !isNavigation) return
+        if ((notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return
+        if ((notification.flags and Notification.FLAG_ONGOING_EVENT) != 0 && !isNavigation) return
 
         val extras = notification.extras
         val appName = SystemData.appLabel(this, sbn.packageName)

@@ -29,7 +29,6 @@ interface IslandHost {
     fun onControl(action: String)
     fun onTap()
     fun onLongPress()
-    fun onMic()
     fun onDismissSwipe()
 }
 
@@ -162,6 +161,6 @@ class IslandView(context: Context, private val host: IslandHost) : LinearLayout(
     fun animateOut(end: () -> Unit) {
         pivotX = width / 2f
         animate().alpha(0f).scaleX(0.7f).scaleY(0.7f).translationY(-dp(16).toFloat())
-            .setDuration(200).setInterpolator(AccelerateInterpolator()).withEndAction(end).start()
+            .setDuration(200).setInterpolator(AccelerateInterpolator()).withEndAction { end() }.start()
     }
 }
