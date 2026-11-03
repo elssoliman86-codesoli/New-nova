@@ -58,6 +58,7 @@ permissions = [
     ("android.permission.READ_PHONE_STATE", ""),
     ("android.permission.RECORD_AUDIO", ""),
     ("android.permission.READ_CONTACTS", ""),
+    ("android.permission.READ_CALENDAR", ""),
     ("android.permission.CALL_PHONE", ""),
     ("android.permission.RECEIVE_BOOT_COMPLETED", ""),
     ("android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS", ""),
@@ -133,3 +134,33 @@ if 'NovaIslandService' not in s:
 p.write_text(s)
 PY
 grep -nE 'android:label|Nova[A-Za-z]+|uses-permission|queries' "$MANIFEST"
+
+# Offline wake-word engine (Vosk) for the voice assistant.
+GRADLE_KTS="$ROOT/android/app/build.gradle.kts"
+GRADLE_GROOVY="$ROOT/android/app/build.gradle"
+if [ -f "$GRADLE_KTS" ]; then
+  if ! grep -q 'vosk-android' "$GRADLE_KTS"; then
+    cat >> "$GRADLE_KTS" <<'KTS'
+
+dependencies {
+    implementation("net.java.dev.jna:jna:5.13.0@aar")
+    implementation("com.alphacephei:vosk-android:0.3.47")
+}
+KTS
+  fi
+elif [ -f "$GRADLE_GROOVY" ]; then
+  if ! grep -q 'vosk-android' "$GRADLE_GROOVY"; then
+    cat >> "$GRADLE_GROOVY" <<'GRV'
+
+dependencies {
+    implementation 'net.java.dev.jna:jna:5.13.0@aar'
+    implementation 'com.alphacephei:vosk-android:0.3.47'
+}
+GRV
+  fi
+else
+  echo "app build.gradle(.kts) not found" >&2
+  exit 1
+fi
+echo "--- gradle dependencies"
+grep -n 'vosk\|jna' "$GRADLE_KTS" "$GRADLE_GROOVY" 2>/dev/null || true

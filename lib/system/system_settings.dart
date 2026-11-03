@@ -26,6 +26,8 @@ const List<IslandModule> islandModules = [
       Icons.wifi_rounded),
   IslandModule('prayer', 'Prayer times', 'A reminder at each prayer',
       Icons.mosque_outlined),
+  IslandModule('calendar', 'Appointments', 'Reminders from your calendar',
+      Icons.event_rounded),
 ];
 
 const String defaultAiModel = 'meta/llama-3.3-70b-instruct';

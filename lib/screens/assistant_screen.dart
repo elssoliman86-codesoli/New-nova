@@ -387,7 +387,9 @@ class _StatusCard extends StatelessWidget {
       text = a.error;
       color = NovaColors.danger;
     } else if (a.on) {
-      text = switch (a.state) {
+      text = a.state == 'listening' && a.wakeStatus.isNotEmpty
+          ? a.wakeStatus
+          : switch (a.state) {
         'awake' => 'Listening to you…',
         'thinking' => 'Thinking…',
         'speaking' => 'Speaking…',

@@ -63,6 +63,12 @@ object IslandState {
 
     @Volatile var weatherText = ""
     @Volatile var weatherAt = 0L
+
+    @Volatile var wakeStatus = ""
+    @Volatile var wakeOffline = false
+
+    @Volatile var nextEventTitle = ""
+    @Volatile var nextEventAt = 0L
 }
 
 /** User choices that must survive the app being closed (service restarts, reboot). */
@@ -77,6 +83,9 @@ object IslandConfig {
     @Volatile private var disabled: Set<String> = emptySet()
     @Volatile var mediaMini = false
     @Volatile var idleEnabled = true
+    @Volatile var cityName = ""
+    @Volatile var tasksToday = 0
+    @Volatile var nextTask = ""
     @Volatile var latitude = 30.0444
     @Volatile var longitude = 31.2357
     @Volatile var prayerAlerts = true
@@ -88,6 +97,9 @@ object IslandConfig {
         disabled = p.getStringSet(KEY_DISABLED, emptySet())?.toSet() ?: emptySet()
         mediaMini = p.getBoolean(KEY_MEDIA_MINI, false)
         idleEnabled = p.getBoolean("idle", true)
+        cityName = p.getString("city", "") ?: ""
+        tasksToday = p.getInt("tasksToday", 0)
+        nextTask = p.getString("nextTask", "") ?: ""
         latitude = p.getFloat("lat", 30.0444f).toDouble()
         longitude = p.getFloat("lon", 31.2357f).toDouble()
         prayerAlerts = p.getBoolean(KEY_PRAYER_ALERTS, true)
@@ -103,12 +115,18 @@ object IslandConfig {
         idle: Boolean,
         lat: Double,
         lon: Double,
+        city: String,
+        tasks: Int,
+        nextTaskTitle: String,
     ) {
         disabled = disabledKinds.toSet()
         mediaMini = mini
         idleEnabled = idle
         latitude = lat
         longitude = lon
+        cityName = city
+        tasksToday = tasks
+        nextTask = nextTaskTitle
         loaded = true
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putStringSet(KEY_DISABLED, disabled)
@@ -116,6 +134,9 @@ object IslandConfig {
             .putBoolean("idle", idle)
             .putFloat("lat", lat.toFloat())
             .putFloat("lon", lon.toFloat())
+            .putString("city", city)
+            .putInt("tasksToday", tasks)
+            .putString("nextTask", nextTaskTitle)
             .apply()
     }
 
@@ -433,6 +454,7 @@ object SystemData {
                     granted(context, android.Manifest.permission.POST_NOTIFICATIONS)),
                 "microphone" to granted(context, android.Manifest.permission.RECORD_AUDIO),
                 "contacts" to granted(context, android.Manifest.permission.READ_CONTACTS),
+                "calendar" to granted(context, android.Manifest.permission.READ_CALENDAR),
                 "callPhone" to granted(context, android.Manifest.permission.CALL_PHONE),
                 "accessibility" to accessibilityEnabled(context)
             ),
@@ -443,8 +465,14 @@ object SystemData {
                 "reply" to IslandState.assistantReply,
                 "error" to IslandState.assistantError,
                 "accessibilityConnected" to IslandState.a11yConnected,
+                "wakeStatus" to IslandState.wakeStatus,
+                "wakeOffline" to IslandState.wakeOffline,
                 "hasKey" to AssistantConfig.apiKey.isNotBlank(),
                 "model" to AssistantConfig.model
+            ),
+            "calendar" to mapOf(
+                "title" to IslandState.nextEventTitle,
+                "at" to IslandState.nextEventAt
             ),
             "weather" to mapOf(
                 "text" to IslandState.weatherText,

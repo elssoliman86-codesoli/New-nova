@@ -126,6 +126,15 @@ class AssistantEngine(private val context: Context, private val ui: Ui) : Recogn
     private var dictating = false
     private var awakeUntil = 0L
     private var errorStreak = 0
+
+    // Two stages: a silent offline wake-word detector (does not touch audio
+    // focus), and the speech recogniser that only runs after the wake word.
+    private var detector: WakeWordDetector? = null
+    private var passive = false
+    private var active = false
+    private var activeUntil = 0L
+    private var wasPlaying = false
+    private var mediaActionTaken = false
     private val history = ArrayList<Pair<String, String>>()
 
     private val listenRunnable = Runnable { listen() }
@@ -148,12 +157,62 @@ class AssistantEngine(private val context: Context, private val ui: Ui) : Recogn
         initTts()
         createRecognizer()
         publish("listening", "")
+        if (AssistantConfig.requireWake) startDetector()
         scheduleListen(200)
+    }
+
+    private fun startDetector() {
+        val words = AssistantConfig.wakeWords.split(',', ';', '،').map { it.trim().lowercase(Locale.ROOT) }
+            .filter { it.isNotEmpty() && it.all { c -> c in 'a'..'z' || c == ' ' } }
+            .ifEmpty { listOf("nova") }.toSet()
+        val d = WakeWordDetector(
+            context, words,
+            onReady = { main.post { passive = true; IslandState.wakeOffline = true; cancelRecognizer() } },
+            onWake = { main.post { if (running && !busy && !active) activate(10_000) } }
+        )
+        detector = d
+        d.start()
+    }
+
+    private fun cancelRecognizer() {
+        main.removeCallbacks(listenRunnable)
+        try { recognizer?.cancel() } catch (_: Exception) { }
+    }
+
+    /** The user said the wake word: listen for one command, then go back to waiting. */
+    private fun activate(durationMs: Long) {
+        active = true
+        activeUntil = System.currentTimeMillis() + durationMs
+        awakeUntil = activeUntil
+        wasPlaying = IslandState.mediaPlaying
+        mediaActionTaken = false
+        detector?.pause()
+        publish("awake", "")
+        scheduleListen(40)
+    }
+
+    private fun deactivate() {
+        active = false
+        main.removeCallbacks(listenRunnable)
+        try { recognizer?.cancel() } catch (_: Exception) { }
+        if (!dictating) publish("listening", "")
+        detector?.resume()
+        // The recogniser can pause the music: bring it back if we caused that.
+        if (wasPlaying && !mediaActionTaken) {
+            val resume = Runnable { if (!IslandState.mediaPlaying) ui.mediaControl("play") }
+            main.postDelayed(resume, 1200)
+        }
+        wasPlaying = false
     }
 
     fun stop() {
         running = false
         main.removeCallbacks(listenRunnable)
+        detector?.stop()
+        detector = null
+        passive = false
+        active = false
+        IslandState.wakeOffline = false
         try { recognizer?.cancel(); recognizer?.destroy() } catch (_: Exception) { }
         recognizer = null
         try { tts?.stop(); tts?.shutdown() } catch (_: Exception) { }
@@ -167,6 +226,7 @@ class AssistantEngine(private val context: Context, private val ui: Ui) : Recogn
 
     fun pause() {
         paused = true
+        detector?.pause()
         main.removeCallbacks(listenRunnable)
         try { recognizer?.cancel() } catch (_: Exception) { }
     }
@@ -174,7 +234,7 @@ class AssistantEngine(private val context: Context, private val ui: Ui) : Recogn
     fun resume() {
         if (!running) return
         paused = false
-        scheduleListen(500)
+        if (passive) { active = false; detector?.resume() } else scheduleListen(500)
     }
 
     val isRunning: Boolean get() = running
@@ -193,12 +253,10 @@ class AssistantEngine(private val context: Context, private val ui: Ui) : Recogn
 
     /** Mic button: listen for one command without a wake word. */
     fun listenNow() {
-        awakeUntil = System.currentTimeMillis() + 10_000
         if (running) {
-            publish("awake", "")
-            try { recognizer?.cancel() } catch (_: Exception) { }
-            scheduleListen(100)
+            if (!busy) activate(10_000)
         } else {
+            awakeUntil = System.currentTimeMillis() + 10_000
             start()
         }
     }
@@ -228,6 +286,13 @@ class AssistantEngine(private val context: Context, private val ui: Ui) : Recogn
 
     private fun listen() {
         if (!running || paused || busy) return
+        if (passive && !active) return
+        // Without the offline wake word the recogniser would interrupt music
+        // and videos, so it only runs while nothing is playing.
+        if (!passive && !active && !dictating && IslandState.mediaPlaying) {
+            scheduleListen(2500)
+            return
+        }
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, AssistantConfig.language)
@@ -265,16 +330,24 @@ class AssistantEngine(private val context: Context, private val ui: Ui) : Recogn
         val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
         if (text.isNotBlank()) handleHeard(text.trim())
         if (!busy) {
-            if (System.currentTimeMillis() >= awakeUntil && !dictating) publish("listening", "")
-            scheduleListen(250)
+            if (passive) {
+                if (System.currentTimeMillis() < activeUntil || dictating) scheduleListen(250) else deactivate()
+            } else {
+                if (System.currentTimeMillis() >= awakeUntil && !dictating) publish("listening", "")
+                scheduleListen(250)
+            }
         }
     }
 
     override fun onError(error: Int) {
         when (error) {
             SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> {
-                if (!dictating && System.currentTimeMillis() >= awakeUntil) publish("listening", "")
-                scheduleListen(200)
+                if (passive) {
+                    if (System.currentTimeMillis() < activeUntil || dictating) scheduleListen(200) else deactivate()
+                } else {
+                    if (!dictating && System.currentTimeMillis() >= awakeUntil) publish("listening", "")
+                    scheduleListen(200)
+                }
             }
             SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> { createRecognizer(); scheduleListen(1200) }
             SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> {
@@ -288,8 +361,12 @@ class AssistantEngine(private val context: Context, private val ui: Ui) : Recogn
                     IslandState.assistantError = "Speech service error $error (check internet / Google app)"
                     publish("error", IslandState.assistantError)
                 }
-                val backoff = minOf(30_000L, 1000L shl minOf(errorStreak, 5))
-                scheduleListen(backoff)
+                if (passive) {
+                    deactivate()
+                } else {
+                    val backoff = minOf(30_000L, 1000L shl minOf(errorStreak, 5))
+                    scheduleListen(backoff)
+                }
             }
         }
     }
@@ -316,13 +393,14 @@ class AssistantEngine(private val context: Context, private val ui: Ui) : Recogn
         val afterWake = findWake(text)
         val command = when {
             afterWake != null -> afterWake
-            now < awakeUntil || !AssistantConfig.requireWake -> text
+            passive || now < awakeUntil || !AssistantConfig.requireWake -> text
             else -> return
         }
         if (command.isBlank()) {
             awakeUntil = now + 8000
+            activeUntil = awakeUntil
             publish("awake", "")
-            speak("نعم؟", flush = true, resumeAfter = false)
+            if (!passive) speak("نعم؟", flush = true, resumeAfter = false)
             return
         }
         runCommand(command)
@@ -420,6 +498,7 @@ Rules: put "open_app" before "read_screen" when asked to open something then rea
         var note = say
         for (i in 0 until actions.length()) {
             val a = actions.optJSONObject(i) ?: continue
+            if (a.optString("type") in setOf("youtube", "music", "media")) mediaActionTaken = true
             val result: String? = try {
                 when (a.optString("type")) {
                     "call" -> commands.call(a.optString("target"))
@@ -474,12 +553,17 @@ Rules: put "open_app" before "read_screen" when asked to open something then rea
     private fun finish(note: String, speakNote: Boolean = true) {
         IslandState.assistantReply = note
         busy = false
+        val followUp = !passive || active
         awakeUntil = System.currentTimeMillis() + 7000
-        if (speakNote && AssistantConfig.speak) speak(note, flush = true, resumeAfter = true)
-        else if (!speaking) scheduleListen(400)
+        if (followUp) activeUntil = awakeUntil
+        if (speakNote && AssistantConfig.speak) speak(note, flush = true, resumeAfter = followUp)
+        else if (!speaking && followUp) scheduleListen(400)
         publish("awake", note)
         main.postDelayed({
-            if (System.currentTimeMillis() >= awakeUntil - 200 && !dictating && !busy) publish("listening", "")
+            if (System.currentTimeMillis() >= awakeUntil - 200 && !dictating && !busy) {
+                if (passive && active) deactivate() else if (!passive) publish("listening", "")
+                else publish("listening", "")
+            }
         }, 7200)
     }
 

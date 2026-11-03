@@ -20,6 +20,7 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.MediaMetadata
 import android.media.session.MediaController
+import android.media.session.MediaSession
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.net.ConnectivityManager
@@ -30,6 +31,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.provider.CalendarContract
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
@@ -81,6 +83,31 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
     // media
     private var mediaManager: MediaSessionManager? = null
     private var activeController: MediaController? = null
+    private var lastPlayingController: MediaController? = null
+    private val sessionCallbacks = HashMap<MediaSession.Token, SessionCallback>()
+    private val sessionControllers = HashMap<MediaSession.Token, MediaController>()
+    private var lastMediaKey = ""
+    private var slideIndex = 0
+    private var calendarEvents: List<Pair<String, Long>> = emptyList()
+    private val firedReminders = HashSet<String>()
+    private val slideRunnable = object : Runnable {
+        override fun run() {
+            advanceSlide()
+            main.postDelayed(this, 4500)
+        }
+    }
+    private val calendarRunnable = object : Runnable {
+        override fun run() {
+            refreshCalendar()
+            main.postDelayed(this, 5 * 60 * 1000L)
+        }
+    }
+    private val reminderRunnable = object : Runnable {
+        override fun run() {
+            checkReminders()
+            main.postDelayed(this, 30_000L)
+        }
+    }
     private var sessionsListener: MediaSessionManager.OnActiveSessionsChangedListener? = null
 
     // system
@@ -132,36 +159,18 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         }
     }
 
-    private val mediaCallback = object : MediaController.Callback() {
-        override fun onMetadataChanged(metadata: MediaMetadata?) {
-            val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE).orEmpty()
-            val artist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST).orEmpty()
-            if (title.isBlank()) return
-            val changed = title != IslandState.mediaTitle
-            IslandState.mediaTitle = title
-            IslandState.mediaArtist = artist
-            IslandState.mediaActive = true
-            if (changed) announceMedia("Now playing")
-            else renderCurrent(false)
-        }
+    /** One callback per media session, so a video that starts later is still noticed. */
+    private inner class SessionCallback(val controller: MediaController) : MediaController.Callback() {
+        override fun onMetadataChanged(metadata: MediaMetadata?) { main.post { mediaChanged(controller, false) } }
 
         override fun onPlaybackStateChanged(state: PlaybackState?) {
-            val playing = state?.state == PlaybackState.STATE_PLAYING
-            val changed = playing != IslandState.mediaPlaying
-            IslandState.mediaPlaying = playing
-            if (state?.state == PlaybackState.STATE_STOPPED || state?.state == PlaybackState.STATE_NONE) {
-                IslandState.mediaActive = false
-            }
-            if (changed && IslandState.mediaTitle.isNotBlank()) announceMedia(if (playing) "Playing" else "Paused")
-            else renderCurrent(false)
+            if (state?.state == PlaybackState.STATE_PLAYING) lastPlayingController = controller
+            main.post { mediaChanged(controller, true) }
         }
 
-        override fun onSessionDestroyed() {
-            IslandState.mediaActive = false
-            IslandState.mediaPlaying = false
-            main.post { refreshMediaSessions() }
-        }
+        override fun onSessionDestroyed() { main.post { refreshMediaSessions() } }
     }
+
 
     // ------------------------------------------------------------ lifecycle
 
@@ -170,6 +179,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         IslandConfig.load(this)
         AssistantConfig.load(this)
         IslandState.running = true
+        instance = this
         createChannel()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         assistant = AssistantEngine(this, this)
@@ -178,6 +188,9 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
         registerNetworkCallback()
         registerPhoneState()
         main.post(weatherRunnable)
+        main.postDelayed(slideRunnable, 4500)
+        main.post(calendarRunnable)
+        main.postDelayed(reminderRunnable, 30_000L)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -202,6 +215,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
                 registerPhoneState()
                 refreshMediaSessions()
                 syncAssistant()
+                refreshCalendar()
             }
             ACTION_MEDIA_CONTROL -> handleMediaControl(intent.getStringExtra(EXTRA_CONTROL).orEmpty())
             ACTION_CONFIG -> {
@@ -209,6 +223,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
                 IslandConfig.load(this)
                 syncAssistant()
                 schedulePrayers()
+                refreshCalendar()
                 main.post(weatherRunnable.also { main.removeCallbacks(it) })
                 renderCurrent(false)
             }
@@ -282,6 +297,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
     private fun spec(kind: String): Triple<String, Int, Pair<Int, Long>> = when (kind) {
         "call" -> Triple("📞", 0xFF3DDC97.toInt(), 100 to 30_000L)
         "prayer" -> Triple("🕌", 0xFFFFB84D.toInt(), 80 to 20_000L)
+        "calendar" -> Triple("📅", 0xFF42C8FF.toInt(), 75 to 12_000L)
         "test" -> Triple("✨", 0xFF42C8FF.toInt(), 60 to 4_000L)
         "battery" -> Triple("🔋", 0xFFFFB84D.toInt(), 50 to 4_000L)
         "audio" -> Triple("🎧", 0xFF398BFF.toInt(), 45 to 4_000L)
@@ -350,19 +366,187 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
 
     // -------------------------------------------------------------- display
 
-    private fun idleModel(): IslandModel {
-        val now = Date()
-        val time = SimpleDateFormat("h:mm a", Locale.getDefault()).format(now)
-        val date = SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(now)
+    private fun fmtBytes(bytes: Long): String {
+        if (bytes <= 0) return "0 B"
+        val units = arrayOf("B", "KB", "MB", "GB", "TB")
+        var value = bytes.toDouble()
+        var unit = 0
+        while (value >= 1024 && unit < units.size - 1) { value /= 1024; unit++ }
+        return if (value >= 100 || unit == 0) "%.0f %s".format(value, units[unit]) else "%.1f %s".format(value, units[unit])
+    }
+
+    private fun fmtSpan(ms: Long): String {
+        val minutes = (ms / 60_000).coerceAtLeast(0)
+        val h = minutes / 60
+        val m = minutes % 60
+        return if (h > 0) "${h}h ${"%02d".format(m)}m" else "${m}m"
+    }
+
+    private fun clock(ms: Long): String = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(ms))
+
+    /** Details that take turns inside the small pill. */
+    private fun idleSlides(): List<IslandModel> {
+        val slides = ArrayList<IslandModel>()
+        val now = System.currentTimeMillis()
+        val mic = AssistantConfig.enabled && AssistantConfig.apiKey.isNotBlank()
+        val blue = 0xFF398BFF.toInt()
+        val green = 0xFF3DDC97.toInt()
+        val amber = 0xFFFFB84D.toInt()
+        val red = 0xFFFF6B7A.toInt()
+        val cyan = 0xFF42C8FF.toInt()
+
+        slides.add(IslandModel(
+            icon = if (IslandState.assistantOn) "🎙" else "🕒",
+            title = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(now)),
+            body = SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(Date(now)),
+            tint = if (IslandState.assistantOn) green else blue,
+            mic = mic,
+        ))
+        if (IslandState.mediaActive && IslandState.mediaPlaying) {
+            slides.add(mediaModel())
+        }
         val weather = IslandState.weatherText
-        val body = if (weather.isBlank()) date else "$date  ·  $weather"
-        return IslandModel(
-            icon = if (AssistantConfig.enabled) "🎙" else "🕒",
-            title = time,
-            body = body,
-            tint = if (IslandState.assistantOn) 0xFF3DDC97.toInt() else 0xFF398BFF.toInt(),
-            mic = AssistantConfig.enabled && AssistantConfig.apiKey.isNotBlank(),
-        )
+        if (weather.isNotBlank()) {
+            slides.add(IslandModel(
+                icon = weather.substringBefore(' '),
+                title = weather.substringAfter(' '),
+                body = IslandConfig.cityName.ifBlank { "Weather" },
+                tint = cyan, mic = mic,
+            ))
+        }
+        if (IslandState.nextPrayerAt > now) {
+            slides.add(IslandModel(
+                icon = "🕌",
+                title = IslandState.nextPrayerLabel.ifBlank { "Prayer" },
+                body = clock(IslandState.nextPrayerAt) + " · in " + fmtSpan(IslandState.nextPrayerAt - now),
+                tint = amber, mic = mic,
+            ))
+        }
+        val battery = SystemData.battery(this)
+        val level = battery["level"] as? Int ?: -1
+        val charging = battery["charging"] as? Boolean ?: false
+        if (level >= 0) {
+            slides.add(IslandModel(
+                icon = if (charging) "⚡" else if (level <= 20) "🪫" else "🔋",
+                title = "$level%",
+                body = if (charging) "Charging" else "Battery",
+                tint = if (charging) green else if (level <= 20) red else green, mic = mic,
+            ))
+        }
+        val storage = SystemData.storage()
+        val total = storage["total"] as? Long ?: 0L
+        val free = storage["free"] as? Long ?: 0L
+        if (total > 0) {
+            val used = ((total - free) * 100 / total).toInt()
+            slides.add(IslandModel(
+                icon = "💾",
+                title = fmtBytes(free) + " free",
+                body = "of " + fmtBytes(total) + " · $used% used",
+                tint = if (used >= 90) red else blue, mic = mic,
+            ))
+        }
+        val memory = SystemData.memory(this)
+        val memTotal = memory["total"] as? Long ?: 0L
+        val memFree = memory["free"] as? Long ?: 0L
+        if (memTotal > 0) {
+            slides.add(IslandModel(
+                icon = "📊",
+                title = "RAM " + fmtBytes(memFree) + " free",
+                body = "of " + fmtBytes(memTotal),
+                tint = cyan, mic = mic,
+            ))
+        }
+        if (IslandState.nextEventAt > now - 60_000 && IslandState.nextEventTitle.isNotBlank()) {
+            val d = IslandState.nextEventAt - now
+            slides.add(IslandModel(
+                icon = "📅",
+                title = IslandState.nextEventTitle,
+                body = (if (d > 60_000) "in " + fmtSpan(d) else "now") + " · " + clock(IslandState.nextEventAt),
+                tint = cyan, mic = mic,
+            ))
+        }
+        if (IslandConfig.tasksToday > 0) {
+            slides.add(IslandModel(
+                icon = "✅",
+                title = "${IslandConfig.tasksToday} task" + (if (IslandConfig.tasksToday == 1) "" else "s") + " today",
+                body = IslandConfig.nextTask,
+                tint = green, mic = mic,
+            ))
+        }
+        if (SystemData.usageAccessGranted(this)) {
+            val usage = SystemData.screenTime(this)
+            val ms = usage["totalMs"] as? Long ?: 0L
+            if (ms > 0) {
+                slides.add(IslandModel(
+                    icon = "⏱",
+                    title = fmtSpan(ms),
+                    body = "screen time today",
+                    tint = blue, mic = mic,
+                ))
+            }
+        }
+        return slides
+    }
+
+    private fun idleModel(): IslandModel {
+        val slides = idleSlides()
+        return slides[slideIndex.mod(slides.size)]
+    }
+
+    private fun advanceSlide() {
+        if (current != null || assistantModel() != null || view == null) return
+        if (System.currentTimeMillis() < hiddenUntil) return
+        if (!IslandConfig.idleEnabled) return
+        if (IslandConfig.mediaMini && IslandState.mediaActive && IslandState.mediaTitle.isNotBlank()) return
+        slideIndex++
+        view?.renderAnimated(idleModel())
+    }
+
+    // ------------------------------------------------------------- calendar
+
+    private fun refreshCalendar() {
+        if (!SystemData.granted(this, android.Manifest.permission.READ_CALENDAR)) {
+            calendarEvents = emptyList()
+            IslandState.nextEventTitle = ""
+            IslandState.nextEventAt = 0L
+            return
+        }
+        worker.execute {
+            val found = ArrayList<Pair<String, Long>>()
+            try {
+                val now = System.currentTimeMillis()
+                val cursor = CalendarContract.Instances.query(
+                    contentResolver,
+                    arrayOf(CalendarContract.Instances.TITLE, CalendarContract.Instances.BEGIN, CalendarContract.Instances.ALL_DAY),
+                    now - 5 * 60 * 1000L, now + 36 * 60 * 60 * 1000L
+                )
+                cursor?.use {
+                    while (it.moveToNext()) {
+                        if (it.getInt(2) == 1) continue
+                        found.add((it.getString(0) ?: "Appointment") to it.getLong(1))
+                    }
+                }
+            } catch (_: Exception) { }
+            found.sortBy { it.second }
+            main.post {
+                calendarEvents = found
+                val next = found.firstOrNull { it.second > System.currentTimeMillis() - 60_000 }
+                IslandState.nextEventTitle = next?.first ?: ""
+                IslandState.nextEventAt = next?.second ?: 0L
+            }
+        }
+    }
+
+    private fun checkReminders() {
+        val now = System.currentTimeMillis()
+        for ((title, begin) in calendarEvents) {
+            val d = begin - now
+            if (d in 1L..600_000L && firedReminders.add("$begin|$title|10")) {
+                post("calendar", "cal$begin", title, "in " + fmtSpan(d + 59_000) + " · " + clock(begin), "📅")
+            } else if (d in -60_000L..0L && firedReminders.add("$begin|$title|0")) {
+                post("calendar", "cal$begin", title, "Starting now", "⏰")
+            }
+        }
     }
 
     private fun assistantModel(): IslandModel? {
@@ -704,25 +888,84 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
                 sessionsListener = l
                 manager.addOnActiveSessionsChangedListener(l, listener)
             }
-            val controllers = manager.getActiveSessions(listener)
-            val controller = controllers.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
-                ?: controllers.firstOrNull()
-            if (controller?.sessionToken != activeController?.sessionToken) {
-                try { activeController?.unregisterCallback(mediaCallback) } catch (_: Exception) { }
-                activeController = controller
-                controller?.registerCallback(mediaCallback)
+            val current = manager.getActiveSessions(listener)
+            val tokens = current.map { it.sessionToken }.toSet()
+            for (token in sessionCallbacks.keys.filter { it !in tokens }) {
+                val controller = sessionControllers[token]
+                val callback = sessionCallbacks[token]
+                if (controller != null && callback != null) {
+                    try { controller.unregisterCallback(callback) } catch (_: Exception) { }
+                }
+                sessionCallbacks.remove(token)
+                sessionControllers.remove(token)
             }
-            if (controller == null) {
-                IslandState.mediaActive = false
-                IslandState.mediaPlaying = false
-            } else {
-                IslandState.mediaApp = SystemData.appLabel(this, controller.packageName)
-                controller.metadata?.let { mediaCallback.onMetadataChanged(it) }
-                controller.playbackState?.let { mediaCallback.onPlaybackStateChanged(it) }
+            for (controller in current) {
+                val token = controller.sessionToken
+                if (!sessionCallbacks.containsKey(token)) {
+                    val callback = SessionCallback(controller)
+                    sessionCallbacks[token] = callback
+                    controller.registerCallback(callback, main)
+                }
+                sessionControllers[token] = controller
             }
+            mediaChanged(null, false)
         } catch (_: SecurityException) {
             IslandState.mediaActive = false
         } catch (_: Exception) { }
+    }
+
+    private fun firstText(metadata: MediaMetadata?, vararg keys: String): String {
+        if (metadata == null) return ""
+        for (key in keys) {
+            val value = try { metadata.getString(key) } catch (_: Exception) { null }
+            if (!value.isNullOrBlank()) return value
+        }
+        return ""
+    }
+
+    /** Picks the session that is playing (videos included) and shows it. */
+    private fun mediaChanged(source: MediaController?, announceState: Boolean) {
+        val all = sessionControllers.values.toList()
+        val playing = all.filter { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+        val last = lastPlayingController
+        val primary: MediaController? = when {
+            last != null && playing.any { it.sessionToken == last.sessionToken } ->
+                playing.first { it.sessionToken == last.sessionToken }
+            playing.isNotEmpty() -> playing.first()
+            last != null && all.any { it.sessionToken == last.sessionToken } ->
+                all.first { it.sessionToken == last.sessionToken }
+            else -> all.firstOrNull()
+        }
+        activeController = primary
+        if (primary == null) {
+            IslandState.mediaActive = false
+            IslandState.mediaPlaying = false
+            renderCurrent(false)
+            return
+        }
+        val metadata = primary.metadata
+        val app = SystemData.appLabel(this, primary.packageName)
+        var title = firstText(metadata, MediaMetadata.METADATA_KEY_TITLE, MediaMetadata.METADATA_KEY_DISPLAY_TITLE, MediaMetadata.METADATA_KEY_ALBUM)
+        val artist = firstText(metadata, MediaMetadata.METADATA_KEY_ARTIST, MediaMetadata.METADATA_KEY_ALBUM_ARTIST,
+            MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, MediaMetadata.METADATA_KEY_AUTHOR)
+        val isPlaying = primary.playbackState?.state == PlaybackState.STATE_PLAYING
+        if (title.isBlank() && isPlaying) title = app
+        val wasPlaying = IslandState.mediaPlaying
+        val key = primary.packageName + "|" + title
+        val newTrack = title.isNotBlank() && key != lastMediaKey
+        if (title.isNotBlank()) lastMediaKey = key
+
+        IslandState.mediaApp = app
+        IslandState.mediaTitle = title
+        IslandState.mediaArtist = artist
+        IslandState.mediaPlaying = isPlaying
+        IslandState.mediaActive = title.isNotBlank() || isPlaying
+
+        when {
+            isPlaying && newTrack -> announceMedia("Now playing")
+            announceState && isPlaying != wasPlaying && title.isNotBlank() -> announceMedia(if (isPlaying) "Playing" else "Paused")
+            else -> renderCurrent(false)
+        }
     }
 
     private fun handleMediaControl(control: String) {
@@ -857,6 +1100,7 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
 
     override fun onDestroy() {
         IslandState.running = false
+        if (instance === this) instance = null
         main.removeCallbacksAndMessages(null)
         try { assistant.stop() } catch (_: Exception) { }
         removeView(animated = false)
@@ -869,14 +1113,28 @@ class NovaIslandService : Service(), IslandHost, AssistantEngine.Ui {
             legacyPhoneListener?.let { telephonyManager?.listen(it, PhoneStateListener.LISTEN_NONE) }
         } catch (_: Exception) { }
         try { sessionsListener?.let { mediaManager?.removeOnActiveSessionsChangedListener(it) } } catch (_: Exception) { }
-        try { activeController?.unregisterCallback(mediaCallback) } catch (_: Exception) { }
+        for ((token, callback) in sessionCallbacks) {
+            try { sessionControllers[token]?.unregisterCallback(callback) } catch (_: Exception) { }
+        }
         worker.shutdown()
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /** Called by the notification listener (same process): no service start needed. */
+    fun externalEvent(kind: String, key: String, title: String, body: String) {
+        main.post { post(kind, key, title, body) }
+    }
+
+    fun externalMediaRefresh() {
+        main.post { refreshMediaSessions() }
+    }
+
     companion object {
+        @Volatile
+        var instance: NovaIslandService? = null
+
         const val ACTION_START = "com.codesoli.nova.START_ISLAND"
         const val ACTION_STOP = "com.codesoli.nova.STOP_ISLAND"
         const val ACTION_SHOW_EVENT = "com.codesoli.nova.SHOW_EVENT"

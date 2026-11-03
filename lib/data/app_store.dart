@@ -190,6 +190,7 @@ class AppStore extends ChangeNotifier {
     _saveTimer = Timer(const Duration(milliseconds: 300), () {
       _saveTimer = null;
       _save();
+      _applySystem();
     });
   }
 
@@ -753,7 +754,13 @@ class AppStore extends ChangeNotifier {
   }
 
   void _applySystem() {
-    unawaited(system.pushConfig(_sys));
+    final today = startOfDay(DateTime.now());
+    final dueNow = openTasks.where((t) => t.due != null && !startOfDay(t.due!).isAfter(today)).toList();
+    unawaited(system.pushConfig(
+      _sys,
+      tasksToday: dueNow.length,
+      nextTask: dueNow.isEmpty ? '' : dueNow.first.title,
+    ));
     unawaited(system.pushPrayers(_sys));
   }
 

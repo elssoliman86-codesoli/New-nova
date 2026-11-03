@@ -111,13 +111,16 @@ class SystemController extends ChangeNotifier {
     }
   }
 
-  Future<void> pushConfig(SystemSettings s) {
+  Future<void> pushConfig(SystemSettings s, {int tasksToday = 0, String nextTask = ''}) {
     return _quiet(() => SystemIslandBridge.setConfig(<String, Object?>{
           'disabled': s.disabledModules,
           'mediaMini': s.mediaMini,
           'idle': s.idlePill,
           'latitude': s.city.latitude,
           'longitude': s.city.longitude,
+          'city': s.city.name,
+          'tasksToday': tasksToday,
+          'nextTask': nextTask,
           'enabled': s.aiEnabled,
           'apiKey': s.aiKey,
           'model': s.aiModel,

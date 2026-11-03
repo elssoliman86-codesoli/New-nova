@@ -29,6 +29,7 @@ class PermissionState {
   bool get phoneState => _has('phoneState');
   bool get microphone => _has('microphone');
   bool get contacts => _has('contacts');
+  bool get calendar => _has('calendar');
   bool get callPhone => _has('callPhone');
   bool get accessibility => _has('accessibility');
 }
@@ -91,6 +92,8 @@ class AssistantInfo {
   String get reply => _str(m['reply']);
   String get error => _str(m['error']);
   bool get hasKey => _bool(m['hasKey']);
+  String get wakeStatus => _str(m['wakeStatus']);
+  bool get wakeOffline => _bool(m['wakeOffline']);
   String get model => _str(m['model']);
 }
 
@@ -161,6 +164,12 @@ class SystemSnapshot {
       final m = _map(e);
       return UsageApp(_str(m['name']), _str(m['package']), _int(m['ms']));
     }).toList();
+  }
+
+  String get nextEventTitle => _str(_map(_raw['calendar'])['title']);
+  DateTime? get nextEventAt {
+    final ms = _int(_map(_raw['calendar'])['at']);
+    return ms == 0 ? null : DateTime.fromMillisecondsSinceEpoch(ms);
   }
 
   int get prayersScheduled => _int(_map(_raw['prayer'])['scheduled']);

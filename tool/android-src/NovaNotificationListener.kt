@@ -1,7 +1,6 @@
 package com.codesoli.nova
 
 import android.app.Notification
-import android.content.Intent
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 
@@ -11,7 +10,7 @@ class NovaNotificationListener : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         IslandState.listenerConnected = true
-        if (IslandState.running) sendServiceAction(NovaIslandService.ACTION_MEDIA_REFRESH)
+        NovaIslandService.instance?.externalMediaRefresh()
     }
 
     override fun onListenerDisconnected() {
@@ -28,7 +27,7 @@ class NovaNotificationListener : NotificationListenerService() {
 
         // Media notifications are handled through the media session.
         if (category == Notification.CATEGORY_TRANSPORT) {
-            if (IslandState.running) sendServiceAction(NovaIslandService.ACTION_MEDIA_REFRESH)
+            NovaIslandService.instance?.externalMediaRefresh()
             return
         }
         if ((notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return
@@ -45,7 +44,7 @@ class NovaNotificationListener : NotificationListenerService() {
         IslandState.lastNotificationApp = appName
         IslandState.lastNotificationAt = System.currentTimeMillis()
 
-        if (!IslandState.running) return
+        val service = NovaIslandService.instance ?: return
         val now = System.currentTimeMillis()
         val minGap = if (isNavigation) 30_000L else 2_500L
         if (now - (lastByPackage[sbn.packageName] ?: 0L) < minGap) return
@@ -53,7 +52,7 @@ class NovaNotificationListener : NotificationListenerService() {
 
         val earbudBattery = parseEarbudBattery(sbn.packageName, "$title $body")
         if (earbudBattery != null) {
-            sendServiceAction(NovaIslandService.ACTION_SHOW_EVENT, "audio", "audio", "Earbuds battery", earbudBattery)
+            service.externalEvent("audio", "audio", "Earbuds battery", earbudBattery)
             return
         }
         val heading = when {
@@ -61,7 +60,7 @@ class NovaNotificationListener : NotificationListenerService() {
             title.isBlank() -> appName
             else -> "$appName • $title"
         }
-        sendServiceAction(NovaIslandService.ACTION_SHOW_EVENT, "notification", sbn.packageName, heading, body)
+        service.externalEvent("notification", sbn.packageName, heading, body)
     }
 
     private fun parseEarbudBattery(packageName: String, text: String): String? {
@@ -77,22 +76,5 @@ class NovaNotificationListener : NotificationListenerService() {
         if (case != null && (case.toIntOrNull() ?: -1) in 0..100) parts.add("Case $case%")
         if (parts.isEmpty() && generic != null && (generic.toIntOrNull() ?: -1) in 0..100) parts.add("$generic%")
         return if (parts.isEmpty()) null else parts.joinToString(" • ")
-    }
-
-    private fun sendServiceAction(
-        action: String,
-        kind: String? = null,
-        key: String? = null,
-        title: String? = null,
-        body: String? = null,
-    ) {
-        val event = Intent(this, NovaIslandService::class.java).setAction(action)
-        if (kind != null) event.putExtra(NovaIslandService.EXTRA_KIND, kind)
-        if (key != null) event.putExtra(NovaIslandService.EXTRA_KEY, key)
-        if (title != null) event.putExtra(NovaIslandService.EXTRA_TITLE, title)
-        if (body != null) event.putExtra(NovaIslandService.EXTRA_BODY, body)
-        try {
-            if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(event) else startService(event)
-        } catch (_: Exception) { }
     }
 }

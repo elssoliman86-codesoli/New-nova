@@ -252,6 +252,20 @@ class _DeviceScreenState extends State<DeviceScreen> with WidgetsBindingObserver
         onAction: !p.exactAlarms && s.sdk >= 31 ? () => _act(SystemIslandBridge.openExactAlarmSettings) : null,
       ),
       _Check(
+        icon: Icons.event_rounded,
+        title: 'Appointments (calendar)',
+        status: p.calendar ? _Status.ok : _Status.warn,
+        detail: !p.calendar
+            ? 'Needs Calendar permission to remind you before appointments.'
+            : (s.nextEventAt == null
+                ? 'No appointment in the next 36 hours.'
+                : 'Next: ${s.nextEventTitle} at ${formatClock(s.nextEventAt!)}'),
+        actionLabel: p.calendar ? null : 'Allow',
+        onAction: p.calendar
+            ? null
+            : () => _act(() => SystemIslandBridge.requestPermissions(const ['calendar'])),
+      ),
+      _Check(
         icon: Icons.wb_sunny_outlined,
         title: 'Weather',
         status: s.weather.isEmpty ? _Status.info : _Status.ok,
@@ -271,7 +285,7 @@ class _DeviceScreenState extends State<DeviceScreen> with WidgetsBindingObserver
                     ? 'Needs your NVIDIA API key.'
                     : s.assistant.error.isNotEmpty
                         ? s.assistant.error
-                        : 'State: ${s.assistant.state}${s.assistant.heard.isEmpty ? '' : ' · heard: ${s.assistant.heard}'}',
+                        : '${s.assistant.wakeStatus.isEmpty ? '' : '${s.assistant.wakeStatus} · '}State: ${s.assistant.state}${s.assistant.heard.isEmpty ? '' : ' · heard: ${s.assistant.heard}'}',
       ),
       _Check(
         icon: Icons.accessibility_new_rounded,

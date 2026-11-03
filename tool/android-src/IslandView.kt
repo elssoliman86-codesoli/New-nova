@@ -44,6 +44,7 @@ class IslandView(context: Context, private val host: IslandHost) : LinearLayout(
     private val playView = control("▶", "toggle")
     private val nextView = control("⏭", "next")
     private val micView = control("🎙", "mic")
+    private val textColumn = LinearLayout(context)
     private val iconBg = GradientDrawable()
     private var hasContent = false
 
@@ -62,6 +63,7 @@ class IslandView(context: Context, private val host: IslandHost) : LinearLayout(
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dp(10), dp(7), dp(12), dp(7))
         minimumHeight = dp(40)
+        minimumWidth = dp(200)
         background = GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM,
             intArrayOf(0xF21B2745.toInt(), 0xF20C1424.toInt())
@@ -80,7 +82,7 @@ class IslandView(context: Context, private val host: IslandHost) : LinearLayout(
         }
         addView(iconView, LayoutParams(dp(30), dp(30)))
 
-        val column = LinearLayout(context).apply {
+        val column = textColumn.apply {
             orientation = VERTICAL
             setPadding(dp(10), 0, dp(4), 0)
         }
@@ -138,6 +140,16 @@ class IslandView(context: Context, private val host: IslandHost) : LinearLayout(
         playView.text = if (model.playing) "⏸" else "▶"
         micView.visibility = if (model.mic) View.VISIBLE else View.GONE
         hasContent = true
+    }
+
+    /** Cross-fades to new content (used when the small pill rotates its details). */
+    fun renderAnimated(model: IslandModel) {
+        val parts = listOf<View>(iconView, textColumn)
+        parts.forEach { it.animate().alpha(0f).setDuration(140).start() }
+        postDelayed({
+            render(model)
+            parts.forEach { it.alpha = 0f; it.animate().alpha(1f).setDuration(200).start() }
+        }, 150)
     }
 
     fun animateIn() {

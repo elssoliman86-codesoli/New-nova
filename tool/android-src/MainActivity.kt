@@ -88,6 +88,9 @@ class MainActivity : FlutterActivity() {
                     args["idle"] as? Boolean ?: true,
                     (args["latitude"] as? Number)?.toDouble() ?: IslandConfig.latitude,
                     (args["longitude"] as? Number)?.toDouble() ?: IslandConfig.longitude,
+                    args["city"] as? String ?: IslandConfig.cityName,
+                    (args["tasksToday"] as? Number)?.toInt() ?: IslandConfig.tasksToday,
+                    args["nextTask"] as? String ?: IslandConfig.nextTask,
                 )
                 AssistantConfig.save(this, args)
                 if (IslandState.running) sendService(NovaIslandService.ACTION_CONFIG)
@@ -159,6 +162,7 @@ class MainActivity : FlutterActivity() {
             add(android.Manifest.permission.READ_PHONE_STATE)
             if (Build.VERSION.SDK_INT >= 33) add(android.Manifest.permission.POST_NOTIFICATIONS)
         }
+        if ("calendar" in groups) add(android.Manifest.permission.READ_CALENDAR)
         if ("assistant" in groups) {
             add(android.Manifest.permission.RECORD_AUDIO)
             add(android.Manifest.permission.READ_CONTACTS)
